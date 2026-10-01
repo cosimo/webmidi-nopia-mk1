@@ -61,3 +61,39 @@ An image of the nopia mk1 is [here](nopia-mk1.webp).
 
 I have a midi keyboard at home. I'm wondering if it would be possible to make a web-midi application that implements similar functionality and driven by the midi keyboard.
 
+---
+
+## Nopia Web (this repository)
+
+A browser harmony instrument inspired by the Nopia, played from a MIDI keyboard over Web MIDI.
+Design: [docs/superpowers/specs/2026-10-01-nopia-web-design.md](docs/superpowers/specs/2026-10-01-nopia-web-design.md).
+
+### Run it
+
+```bash
+npm install
+npm run dev
+```
+
+Open <http://localhost:5173> in Chrome or Edge (in Windows, when developing in WSL2), allow MIDI
+access when asked, and click to start audio.
+
+### Test
+
+```bash
+npm test            # unit tests (Vitest)
+npm run e2e         # browser tests (Playwright with a fake Web MIDI)
+npm run typecheck
+```
+
+### Play
+
+- Keys below the split point (default C4 = 60) play chords: each key is a scale degree, all 12 are
+  harmonized. Keys from the split point up play the melody.
+- Hold the key-select key (default G5 = 79, the M32's top key) and press a chord key to change the key.
+- Left of the display: Real/Static layout, Major/Minor, Secondary dominants/Borrowed table, Extensions.
+- Each module (Keys, Pad, Bass, Melody) can sound internally and/or go to a MIDI port and channel.
+- Settings: split point, key-select note, master FX, control mappings with MIDI learn.
+- Panic silences everything, internal and MIDI.
+
+Hardware checklist: [docs/hardware-check-m1.md](docs/hardware-check-m1.md).
