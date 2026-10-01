@@ -1,7 +1,7 @@
 # Nopia Web — Design Spec
 
 Date: 2026-10-01
-Status: approved in conversation, pending written-spec review
+Status: approved (2026-10-02)
 
 ## 1. Purpose
 
