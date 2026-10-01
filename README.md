@@ -57,7 +57,7 @@ We invite you to be part of this dream.
 See you on the other side.
 
 ---
-An image of the nopia mk1 is [here](nopia-mk1.webm).
+An image of the nopia mk1 is [here](nopia-mk1.webp).
 
 I have a midi keyboard at home. I'm wondering if it would be possible to make a web-midi application that implements similar functionality and driven by the midi keyboard.
 
