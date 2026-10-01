@@ -1,0 +1,181 @@
+:root {
+  --wall: #cfcac1;
+  --panel: #b4d4a6;
+  --panel-shade: #9dbf8f;
+  --ink: #23301f;
+  --knob: #f3f4ef;
+  --knob-shadow: rgba(40, 60, 35, 0.35);
+  --button: #8fa3ae;
+  --button-ink: #f4f7f8;
+  --button-on: #e7f1f4;
+  --oled-bg: #0e1513;
+  --oled-ink: #c9f6e4;
+  --key-white: #e8e9e4;
+  --key-black: #c9ccc8;
+  --key-pressed: #9fd3c0;
+  --chord-zone: #f6f2e2;
+  --accent: #e0703a;
+  --white-w: 44px;
+  --black-w: 28px;
+  font-family: system-ui, sans-serif;
+  color: var(--ink);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--wall);
+}
+
+button, select, input { font: inherit; }
+
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: var(--button);
+  color: var(--button-ink);
+  cursor: pointer;
+}
+button.active { background: var(--accent); }
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+.header h1 { margin: 0 12px 0 0; font-size: 20px; letter-spacing: 0.08em; }
+.header h1 span { font-weight: 300; }
+.header .panic { background: var(--accent); margin-left: auto; }
+
+.banners { padding: 0 16px; }
+.banner { margin: 4px 0; padding: 8px 12px; border-radius: 8px; background: #f7e3c8; }
+.banner.feedback { background: #f6d0c8; }
+
+.panel {
+  margin: 8px 16px 16px;
+  padding: 28px;
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 2px 0 var(--panel-shade), 0 12px 30px rgba(0, 0, 0, 0.15);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "controls oled tonal"
+    "keyboard keyboard modules";
+  gap: 28px;
+  align-items: start;
+}
+
+.controls { grid-area: controls; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.toggle { width: 160px; white-space: nowrap; }
+
+.knob { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; }
+.knob-dial {
+  --size: 44px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: 0 3px 6px var(--knob-shadow);
+  position: relative;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.knob.large .knob-dial { --size: 84px; }
+.knob-dial::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 2px;
+  height: 34%;
+  background: var(--ink);
+  transform-origin: 50% 124%;
+  transform: translateX(-50%) rotate(var(--angle));
+}
+
+.oled {
+  grid-area: oled;
+  justify-self: center;
+  min-width: 300px;
+  padding: 14px 18px;
+  border-radius: 6px;
+  background: var(--oled-bg);
+  color: var(--oled-ink);
+  font-family: ui-monospace, monospace;
+}
+.oled.idle .oled-chord, .oled.idle .oled-roman, .oled.idle .oled-fn { opacity: 0.4; }
+.oled-chord { font-size: 40px; line-height: 1.1; }
+.oled-roman { font-size: 20px; }
+.oled-fn { font-size: 14px; min-height: 1.2em; }
+.oled-status { margin-top: 8px; font-size: 12px; opacity: 0.8; }
+
+.tonal-selector {
+  grid-area: tonal;
+  display: grid;
+  grid-template-columns: repeat(15, 18px);
+  grid-auto-rows: 40px;
+  gap: 4px 0;
+}
+.tonic { grid-row: 2; width: 36px; height: 36px; padding: 0; font-size: 11px; }
+.tonic.black { grid-row: 1; }
+.tonic.active { background: var(--button-on); color: var(--ink); box-shadow: 0 0 0 2px var(--accent); }
+
+.keyboard {
+  grid-area: keyboard;
+  position: relative;
+  display: flex;
+  width: calc(var(--whites) * var(--white-w));
+  height: 170px;
+  user-select: none;
+}
+.key { touch-action: none; cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; font-size: 10px; padding-bottom: 6px; }
+.key.white {
+  width: var(--white-w);
+  height: 100%;
+  background: var(--key-white);
+  border: 1px solid #555;
+  border-radius: 0 0 4px 4px;
+}
+.key.black {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  width: var(--black-w);
+  height: 60%;
+  background: var(--key-black);
+  border: 1px solid #555;
+  border-radius: 0 0 3px 3px;
+  font-size: 8px;
+}
+.key.chord-zone.white { background: var(--chord-zone); }
+.key.key-select { outline: 2px dashed var(--accent); outline-offset: -4px; }
+.key.pressed { background: var(--key-pressed) !important; }
+.key-chord { font-weight: 600; }
+.key-roman { opacity: 0.7; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgba(30, 40, 30, 0.55);
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+.overlay[hidden], [hidden] { display: none !important; }
+
+@media (max-width: 1100px) {
+  .panel {
+    grid-template-columns: 1fr;
+    grid-template-areas: "controls" "oled" "tonal" "keyboard" "modules";
+  }
+  .keyboard { overflow-x: auto; max-width: 100%; }
+}
