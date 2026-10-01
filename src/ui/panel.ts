@@ -1,5 +1,5 @@
 import type { Bus } from '../core/bus';
-import { type ControlTarget, type ModuleId, type Settings, type Store } from '../core/store';
+import { MODULE_IDS, type ControlTarget, type ModuleId, type Settings, type Store } from '../core/store';
 import type { ExtLevel } from '../harmony/theory';
 import type { ControlMap } from '../input/controlMap';
 import type { InputRouter } from '../input/inputRouter';
@@ -7,6 +7,7 @@ import type { MidiPorts } from '../input/midiAccess';
 import { createSelect, h } from './dom';
 import { createKeyboardView } from './keyboardView';
 import { createKnob } from './knob';
+import { createModuleStrip } from './moduleStrip';
 import { createOled } from './oled';
 import { createTonalSelector } from './tonalSelector';
 
@@ -30,11 +31,15 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
 
   // header
   const inputSelect = createSelect({ 'data-testid': 'input-select' }, (v) => store.update((s) => (s.input = v)));
+  const outputSelect = createSelect({ 'data-testid': 'output-all' }, (v) => {
+    if (v !== '*') store.update((s) => MODULE_IDS.forEach((id) => (s.modules[id].port = v === '' ? null : v)));
+  });
   const header = h(
     'header',
     { class: 'header' },
     h('h1', {}, 'nopia', h('span', {}, ' web')),
     h('label', {}, 'MIDI in ', inputSelect.el),
+    h('label', {}, 'MIDI out (all) ', outputSelect.el),
     h('button', { class: 'panic', 'data-learn': 'panic', 'data-testid': 'panic', onclick: () => deps.panic() }, 'Panic'),
   );
   const banners = h('div', { class: 'banners' });
@@ -57,6 +62,11 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
   const oled = createOled();
   const tonal = createTonalSelector(store);
   const keyboard = createKeyboardView(router);
+  const strip = createModuleStrip({
+    store,
+    outputNames: () => deps.ports()?.outputNames() ?? [],
+    portMissing: deps.portMissing,
+  });
   const panel = h(
     'main',
     { class: 'panel' },
@@ -64,6 +74,7 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
     oled.el,
     tonal.el,
     keyboard.el,
+    strip.el,
   );
   const overlay = h(
     'div',
@@ -80,6 +91,7 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
     oled.showStatus(s);
     tonal.render(s);
     keyboard.render(s);
+    strip.render(s);
   }
   store.subscribe((s) => render(s));
   render(store.get());
@@ -115,6 +127,15 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
       inputSelect.setOptions(inputOptions, current ?? s.input ?? '');
 
       setBanner('input', current === null ? 'Connect a keyboard — no MIDI input is connected.' : null);
+
+      const outs = ports.outputNames();
+      const chosen = new Set(MODULE_IDS.map((id) => s.modules[id].port ?? ''));
+      const outOptions = [{ value: '', label: '— none —' }, ...outs.map((n) => ({ value: n, label: n }))];
+      if (chosen.size > 1) outOptions.unshift({ value: '*', label: '(per module)' });
+      outputSelect.setOptions(outOptions, chosen.size > 1 ? '*' : [...chosen][0]);
+      const loop = current !== null && MODULE_IDS.some((id) => s.modules[id].port === current);
+      setBanner('feedback', loop ? `“${current}” is both the MIDI input and a module output — this can cause a feedback loop.` : null);
+      strip.render(s);
     },
   };
 }

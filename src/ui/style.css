@@ -179,3 +179,9 @@ button.active { background: var(--accent); }
   }
   .keyboard { overflow-x: auto; max-width: 100%; }
 }
+.module-strip { grid-area: modules; display: grid; grid-template-columns: repeat(2, auto); gap: 16px; }
+.module { display: flex; gap: 8px; align-items: flex-start; }
+.module.disabled { opacity: 0.5; }
+.module-settings summary { cursor: pointer; font-weight: 600; }
+.module-settings label { display: block; font-size: 12px; margin: 4px 0; }
+.badge { margin-left: 4px; color: var(--accent); }
