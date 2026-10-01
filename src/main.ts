@@ -94,7 +94,10 @@ void requestMidi(navigator).then((result) => {
   }
   const ports = result.ports;
   midi = ports;
-  ports.onMessage((data) => router.handleMidi(data));
+  ports.onMessage((data) => {
+    router.handleMidi(data);
+    ui.logMidi(data);
+  });
   const refresh = () => {
     const hadInput = ports.currentInput() !== null;
     const hasInput = ports.useInput(pickInput(ports.inputNames(), store.get().input));
