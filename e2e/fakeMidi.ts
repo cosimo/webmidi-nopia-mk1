@@ -11,12 +11,12 @@ function installFakeMidi(opts: { inputs: string[]; outputs: string[] }) {
   type Port = {
     id: string; name: string; type: string; state: string; connection: string;
     onmidimessage: null | ((e: { data: Uint8Array }) => void);
-    send(data: number[]): void;
+    send(data: number[], t?: number): void;
   };
-  const sent: { port: string; data: number[] }[] = [];
+  const sent: { port: string; data: number[]; t?: number }[] = [];
   const port = (name: string, type: string): Port => ({
     id: `${type}:${name}`, name, type, state: 'connected', connection: 'open', onmidimessage: null,
-    send(data) { sent.push({ port: name, data: Array.from(data) }); },
+    send(data, t) { sent.push({ port: name, data: Array.from(data), t }); },
   });
   const inputs = new Map(opts.inputs.map((n) => [`input:${n}`, port(n, 'input')]));
   const outputs = new Map(opts.outputs.map((n) => [`output:${n}`, port(n, 'output')]));
@@ -53,7 +53,8 @@ export async function sendMidi(page: Page, data: number[], input = M32) {
   await page.evaluate(([name, d]) => (window as any).__midi.send(name, d), [input, data] as const);
 }
 
-export async function midiSent(page: Page): Promise<{ port: string; data: number[] }[]> {
+/** Messages sent to the fake outputs; `t` is the Web MIDI timestamp, when one was given. */
+export async function midiSent(page: Page): Promise<{ port: string; data: number[]; t?: number }[]> {
   return page.evaluate(() => (window as any).__midi.sent);
 }
 

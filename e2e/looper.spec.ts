@@ -52,6 +52,30 @@ test.describe('looper', () => {
       .toBeGreaterThan(0);
   });
 
+  test('the Arp plays a loop chord from its first beat', async ({ page }) => {
+    await page.getByTestId('arp-open').click();
+    await page.getByTestId('arp-enabled').check();
+    await page.getByTestId('arp-port').selectOption(SYNTH);
+    await page.getByTestId('arp-rate').selectOption('1/4');
+    const verse = page.getByTestId('slot-verse');
+    await sendMidi(page, [0x90, 48, 100]); // held before recording starts: the loop's C begins on beat 1
+    await page.getByTestId('loop-rec').click();
+    await expect(verse).not.toHaveClass(/waiting/, { timeout: 3000 });
+    await page.waitForTimeout(300);
+    await sendMidi(page, [0x80, 48, 0]);
+    await page.getByTestId('loop-rec').click();
+    await expect(verse).toHaveAttribute('data-state', 'playing', { timeout: 3000 });
+    // replayed notes carry port timestamps: an Arp step must start with the loop's chord
+    await expect.poll(async () => {
+      const sent = await midiSent(page);
+      const starts = (status: number, note?: number) => sent
+        .filter((m) => m.data[0] === status && m.data[2] > 0 && (note === undefined || m.data[1] === note) && m.t !== undefined)
+        .map((m) => m.t!);
+      const arp = starts(0x92);
+      return starts(0x90, 60).some((t) => arp.some((a) => Math.abs(a - t) < 10));
+    }, { timeout: 5000 }).toBe(true);
+  });
+
   test('clear stops the loop', async ({ page }) => {
     await recordBarOfC(page);
     await page.getByTestId('loop-clear').click();

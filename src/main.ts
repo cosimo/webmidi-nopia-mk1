@@ -69,6 +69,11 @@ const modules: Module[] = [
     (seconds, fn) => void setTimeout(fn, seconds * 1000),
   ),
 ];
+// the looper hears each tick before the modules, so what it replays on a tick (a chord on the
+// loop's first beat) reaches them, the Arp's step on that tick included, ahead of the tick itself
+bus.subscribe((e) => {
+  if (e.type === 'tick') looper.handle(e);
+});
 bus.subscribe((e) => {
   for (const m of modules) m.handle(e);
 });
@@ -125,7 +130,9 @@ const ui = mountPanel(document.querySelector<HTMLElement>('#app')!, {
   looper,
 });
 // last: when the looper re-sends its chord on a live release, every listener has seen the release
-bus.subscribe((e) => looper.handle(e));
+bus.subscribe((e) => {
+  if (e.type !== 'tick') looper.handle(e);
+});
 
 const context = Tone.getContext();
 const onAudioState = () => {
