@@ -1,7 +1,8 @@
 import type { ExtLevel, HarmonySettings, LayoutMode, TableId, Tonality } from '../harmony/theory';
+import { TEMPO_DEFAULT, TEMPO_MAX, TEMPO_MIN } from './clock';
 
-export type ModuleId = 'keys' | 'pad' | 'bass' | 'melody';
-export const MODULE_IDS: ModuleId[] = ['keys', 'pad', 'bass', 'melody'];
+export type ModuleId = 'keys' | 'pad' | 'bass' | 'melody' | 'arp' | 'strum';
+export const MODULE_IDS: ModuleId[] = ['keys', 'pad', 'bass', 'melody', 'arp', 'strum'];
 
 /** Presets each module offers; sound/presets.ts implements them. */
 export const PRESET_CHOICES: Record<ModuleId, { id: string; label: string }[]> = {
@@ -22,6 +23,14 @@ export const PRESET_CHOICES: Record<ModuleId, { id: string; label: string }[]> =
     { id: 'lead', label: 'Lead' },
     { id: 'leadGlide', label: 'Lead (glide)' },
   ],
+  arp: [
+    { id: 'pluck', label: 'Pluck' },
+    { id: 'bell', label: 'Bell' },
+  ],
+  strum: [
+    { id: 'harp', label: 'Harp' },
+    { id: 'pluck', label: 'Pluck' },
+  ],
 };
 
 export type ControlTarget =
@@ -33,6 +42,8 @@ export type ControlTarget =
   | 'vol.pad'
   | 'vol.bass'
   | 'vol.melody'
+  | 'vol.arp'
+  | 'vol.strum'
   | 'tone'
   | 'reverb'
   | 'delay'
@@ -41,7 +52,7 @@ export type ControlTarget =
 
 export const CONTROL_TARGETS: ControlTarget[] = [
   'extensions', 'layout', 'tonality', 'table',
-  'vol.keys', 'vol.pad', 'vol.bass', 'vol.melody',
+  'vol.keys', 'vol.pad', 'vol.bass', 'vol.melody', 'vol.arp', 'vol.strum',
   'tone', 'reverb', 'delay', 'master', 'panic',
 ];
 
@@ -70,6 +81,21 @@ export interface MasterSettings {
   tone: number;
 }
 
+export type ArpPattern = 'up' | 'down' | 'upDown' | 'random';
+export const ARP_PATTERNS: ArpPattern[] = ['up', 'down', 'upDown', 'random'];
+export type ArpRate = '1/4' | '1/8' | '1/8T' | '1/16' | '1/16T';
+/** Slow to fast. */
+export const ARP_RATES: ArpRate[] = ['1/4', '1/8', '1/8T', '1/16', '1/16T'];
+
+export interface ArpSettings {
+  pattern: ArpPattern;
+  rate: ArpRate;
+  octaves: 1 | 2 | 3;
+  gate: number; // 0.1..1, fraction of a step
+}
+
+export type ModStripFunction = 'vibrato' | 'strum';
+
 export interface Settings extends HarmonySettings {
   splitPoint: number;
   keySelectNote: number;
@@ -77,9 +103,13 @@ export interface Settings extends HarmonySettings {
   modules: Record<ModuleId, ModuleSettings>;
   master: MasterSettings;
   input: string | null; // MIDI input name
+  tempo: number; // whole BPM, 40..240
+  metronome: boolean;
+  modStrip: ModStripFunction;
+  arp: ArpSettings;
 }
 
-export const STORAGE_KEY = 'nopia-web.settings.v1';
+export const STORAGE_KEY = 'nopia-web.settings.v2';
 
 export function defaultSettings(): Settings {
   const mod = (preset: string, channel: number, volume: number): ModuleSettings => ({
@@ -103,9 +133,15 @@ export function defaultSettings(): Settings {
       pad: mod('warmPad', 4, 0.5),
       bass: mod('sub', 2, 0.7),
       melody: mod('lead', 5, 0.8),
+      arp: { ...mod('pluck', 3, 0.6), enabled: false }, // would double every chord on first launch
+      strum: mod('harp', 6, 0.7),
     },
     master: { volume: 0.8, reverb: 0.25, delay: 0.1, tone: 0.8 },
     input: null,
+    tempo: TEMPO_DEFAULT,
+    metronome: false,
+    modStrip: 'strum',
+    arp: { pattern: 'up', rate: '1/8', octaves: 1, gate: 0.5 },
   };
 }
 
@@ -127,6 +163,11 @@ function isModule(id: ModuleId, v: unknown): boolean {
     isOneOf(v.preset, PRESET_CHOICES[id].map((p) => p.id)) && isNameOrNull(v.port) && isInt(v.channel, 1, 16);
 }
 
+function isArp(v: unknown): boolean {
+  return isObj(v) && isOneOf(v.pattern, ARP_PATTERNS) && isOneOf(v.rate, ARP_RATES) &&
+    isOneOf(v.octaves, [1, 2, 3]) && typeof v.gate === 'number' && v.gate >= 0.1 && v.gate <= 1;
+}
+
 export function isValidSettings(v: unknown): v is Settings {
   if (!isObj(v)) return false;
   const { modules, master } = v;
@@ -140,7 +181,11 @@ export function isValidSettings(v: unknown): v is Settings {
     Array.isArray(v.bindings) && v.bindings.every(isBinding) &&
     isObj(modules) && MODULE_IDS.every((id) => isModule(id, modules[id])) &&
     isObj(master) && isUnit(master.volume) && isUnit(master.reverb) && isUnit(master.delay) && isUnit(master.tone) &&
-    isNameOrNull(v.input);
+    isNameOrNull(v.input) &&
+    isInt(v.tempo, TEMPO_MIN, TEMPO_MAX) &&
+    typeof v.metronome === 'boolean' &&
+    isOneOf(v.modStrip, ['vibrato', 'strum'] satisfies ModStripFunction[]) &&
+    isArp(v.arp);
 }
 
 type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem'>;

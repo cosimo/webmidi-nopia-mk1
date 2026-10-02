@@ -12,6 +12,8 @@ export const TARGET_INFO: Record<ControlTarget, { label: string; kind: TargetKin
   'vol.pad': { label: 'Pad volume', kind: 'continuous' },
   'vol.bass': { label: 'Bass volume', kind: 'continuous' },
   'vol.melody': { label: 'Melody volume', kind: 'continuous' },
+  'vol.arp': { label: 'Arp volume', kind: 'continuous' },
+  'vol.strum': { label: 'Strum volume', kind: 'continuous' },
   tone: { label: 'Tone', kind: 'continuous' },
   reverb: { label: 'Reverb send', kind: 'continuous' },
   delay: { label: 'Delay send', kind: 'continuous' },

@@ -24,7 +24,7 @@ describe('Store', () => {
       '14:extensions', '15:vol.keys', '16:vol.pad', '17:vol.bass',
       '18:vol.melody', '19:tone', '20:reverb', '21:master',
     ]);
-    expect(Object.values(s.modules).map((m) => m.channel)).toEqual([1, 4, 2, 5]);
+    expect(Object.values(s.modules).map((m) => m.channel)).toEqual([1, 4, 2, 5, 3, 6]);
     expect(Object.values(s.modules).every((m) => m.port === null)).toBe(true);
   });
 
@@ -78,6 +78,35 @@ describe('Store', () => {
     const store = new Store(throwing);
     store.update((s) => (s.tonic = 3));
     expect(store.get().tonic).toBe(3);
+  });
+
+  it('defaults the rhythm settings: 100 BPM, no click, Strum on the mod strip, Arp off', () => {
+    const s = defaultSettings();
+    expect([s.tempo, s.metronome, s.modStrip]).toEqual([100, false, 'strum']);
+    expect(s.arp).toEqual({ pattern: 'up', rate: '1/8', octaves: 1, gate: 0.5 });
+    expect([s.modules.arp.enabled, s.modules.arp.preset, s.modules.strum.enabled, s.modules.strum.preset])
+      .toEqual([false, 'pluck', true, 'harp']);
+  });
+
+  it('rejects out-of-range rhythm settings', () => {
+    const valid = (patch: (s: Settings) => void) => {
+      const s = defaultSettings();
+      patch(s);
+      return isValidSettings(s);
+    };
+    expect(valid((s) => (s.tempo = 240))).toBe(true);
+    expect(valid((s) => (s.tempo = 241))).toBe(false);
+    expect(valid((s) => (s.tempo = 100.5))).toBe(false);
+    expect(valid((s) => (s.arp.gate = 0.05))).toBe(false);
+    expect(valid((s) => ((s.arp as { rate: string }).rate = '1/32'))).toBe(false);
+    expect(valid((s) => ((s as { modStrip: string }).modStrip = 'pitch'))).toBe(false);
+  });
+
+  it('ignores settings saved by milestone 1 under the v1 key', () => {
+    const v1 = { ...defaultSettings(), tonic: 5 };
+    const store = new Store(memoryStorage({ 'nopia-web.settings.v1': JSON.stringify(v1) }));
+    expect(store.get().tonic).toBe(0);
+    expect(STORAGE_KEY).toBe('nopia-web.settings.v2');
   });
 
   it('validates the defaults', () => {

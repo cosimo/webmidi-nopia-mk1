@@ -17,7 +17,10 @@ test.describe('modules and MIDI out', () => {
   });
 
   test('every preset builds and plays', async ({ page }) => {
-    const presets = { keys: ['organ', 'pluck', 'epiano'], pad: ['glass', 'warmPad'], bass: ['sawBass', 'sub'], melody: ['leadGlide', 'lead'] };
+    const presets = {
+      keys: ['organ', 'pluck', 'epiano'], pad: ['glass', 'warmPad'], bass: ['sawBass', 'sub'], melody: ['leadGlide', 'lead'],
+      arp: ['bell', 'pluck'], strum: ['pluck', 'harp'],
+    };
     for (const [id, ids] of Object.entries(presets)) {
       await page.getByTestId(`${id}-open`).click();
       for (const preset of ids) {

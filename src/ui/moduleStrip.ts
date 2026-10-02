@@ -2,7 +2,7 @@ import { MODULE_IDS, PRESET_CHOICES, type ModuleId, type ModuleSettings, type Se
 import { createSelect, h } from './dom';
 import { createKnob } from './knob';
 
-const NAMES: Record<ModuleId, string> = { keys: 'Keys', pad: 'Pad', bass: 'Bass', melody: 'Melody' };
+const NAMES: Record<ModuleId, string> = { keys: 'Keys', pad: 'Pad', bass: 'Bass', melody: 'Melody', arp: 'Arp', strum: 'Strum' };
 const CHANNELS = Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `ch ${i + 1}` }));
 
 /** A volume knob per module; the module name opens its settings. */

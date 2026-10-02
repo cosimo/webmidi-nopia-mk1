@@ -38,7 +38,7 @@ const master = new Master();
 let midi: MidiPorts | null = null;
 const outputs = new ModuleOutputs({
   internal: (id, preset) =>
-    new ToneSink(createVoice(preset), id === 'keys' || id === 'pad' ? master.toneInput : master.input, id === 'melody'),
+    new ToneSink(createVoice(preset), id === 'keys' || id === 'pad' || id === 'arp' ? master.toneInput : master.input, id === 'melody'),
   midiPort: (name) => midi?.output(name) ?? null,
   portTime: audioToPortTime,
 });

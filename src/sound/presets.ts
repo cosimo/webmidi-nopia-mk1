@@ -107,6 +107,24 @@ const PRESETS: Record<string, () => Voice> = {
         volume: -16,
       }),
     ),
+  bell: () =>
+    new PolyVoice(
+      new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 5.07,
+        modulationIndex: 12,
+        envelope: { attack: 0.001, decay: 1.2, sustain: 0, release: 1.2 },
+        modulationEnvelope: { attack: 0.001, decay: 0.6, sustain: 0, release: 0.6 },
+        volume: -16,
+      }),
+    ),
+  harp: () =>
+    new PolyVoice(
+      new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.002, decay: 1.6, sustain: 0, release: 1.2 },
+        volume: -10,
+      }),
+    ),
   sub: () =>
     new MonoVoice(
       new Tone.MonoSynth({
