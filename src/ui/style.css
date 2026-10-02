@@ -240,6 +240,26 @@ button, select, input { font: inherit; }
 .oled-status { position: absolute; left: 1.6cqw; bottom: 1cqw; font-size: 0.85cqw; opacity: 0.65; }
 .oled.idle .oled-chord, .oled.idle .oled-roman, .oled.idle .oled-fn { opacity: 0.4; }
 
+/* the mod strip's wheel: it shows where CC1 is */
+.wheel { border-radius: 3px; background: #262b28; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6); }
+.wheel::before {
+  content: '';
+  position: absolute;
+  inset: 6% 14%;
+  border-radius: 40% / 12%;
+  background: linear-gradient(90deg, #b9bcb7, #f3f4f1 50%, #b3b6b1);
+}
+.wheel-mark {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: calc(8% + (1 - var(--v, 0)) * 78%);
+  height: 6%;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #9da09b, #6f736e);
+  transition: top 60ms linear;
+}
+
 /* module labels and their settings */
 .module { display: contents; }
 .module-label { padding: 2px 3px; border: none; background: none; cursor: pointer; }
@@ -307,6 +327,7 @@ button, select, input { font: inherit; }
   border-radius: 0 0 2px 2px;
   background: linear-gradient(180deg, #e4e6e1, #d6d8d3);
   font-size: clamp(6px, 0.68cqw, 10px);
+  overflow-wrap: anywhere; /* long chord names wrap on the narrow black keys */
   transform: translateX(-50%);
 }
 .key.pressed { background: linear-gradient(180deg, #e2f3dc, #cfe9c7) !important; }

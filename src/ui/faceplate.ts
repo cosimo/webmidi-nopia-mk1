@@ -32,6 +32,7 @@ export interface FaceplateParts {
   tone: HTMLElement;
   delay: HTMLElement;
   display: HTMLElement;
+  wheel: HTMLElement;
   chordKeys: HTMLElement;
   keyButton: HTMLElement;
   tonics: HTMLElement[]; // by pitch class
@@ -72,6 +73,7 @@ export function createFaceplate(p: FaceplateParts): HTMLElement {
     place(p.master, 92.4, 27.5, 6.2), label('Master', 92.4, 36.4),
 
     box(p.display, 57.5, 42.5, 31, 20.5),
+    box(p.wheel, 92.2, 44, 3.4, 19.3), label('Mod', 93.9, 66.5),
 
     place(p.tone, 4.1, 62, 2.8), label('Tone', 4.1, 67.2),
     place(p.delay, 4.1, 76, 2.8), label('Delay', 4.1, 81.2),

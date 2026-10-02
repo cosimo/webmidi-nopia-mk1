@@ -85,6 +85,13 @@ test.describe('the Nopia faceplate', () => {
     await expect(page.getByTestId('oled-status')).toContainText('C major');
   });
 
+  test('the wheel shows where the mod strip is', async ({ page }) => {
+    const wheel = page.locator('.faceplate').getByTestId('mod-wheel');
+    await expect(wheel).toHaveAttribute('aria-valuenow', '0');
+    await sendMidi(page, [0xb0, 1, 127]);
+    await expect(wheel).toHaveAttribute('aria-valuenow', '127');
+  });
+
   test('the Strum · Vib switch sends the mod strip to the Melody\'s vibrato', async ({ page }) => {
     await page.getByTestId('melody-open').click();
     await page.getByTestId('melody-port').selectOption(SYNTH);

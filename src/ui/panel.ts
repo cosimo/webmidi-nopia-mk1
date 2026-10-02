@@ -104,6 +104,11 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
     delay: masterKnob('delay', 'Delay', 'delay', 'small'),
   };
   const oled = createOled();
+  const wheel = h(
+    'div',
+    { class: 'wheel', role: 'meter', 'aria-label': 'Mod strip', 'aria-valuemin': 0, 'aria-valuemax': 127, 'aria-valuenow': 0, 'data-testid': 'mod-wheel' },
+    h('div', { class: 'wheel-mark' }),
+  );
   const tonal = createTonalSelector(store);
   const chordKeys = createKeyboardView(router, (s) => [s.splitPoint - 12, s.splitPoint - 1], 'chord-keys');
   const melodyKeys = createKeyboardView(router, (s) => [s.splitPoint, s.splitPoint + 19], 'melody-strip');
@@ -158,6 +163,7 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
     tone: fx.tone.knob.el,
     delay: fx.delay.knob.el,
     display: oled.el,
+    wheel,
     chordKeys: chordKeys.el,
     keyButton,
     tonics: tonal.buttons,
@@ -231,6 +237,10 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
     if (e.type === 'chordOn' || e.type === 'chordChange') oled.showChord(e.chord);
     if (e.type === 'chordOff' || e.type === 'panic') oled.showChord(null);
     if (e.type === 'panic') latchKey(false);
+    if (e.type === 'mod') {
+      wheel.setAttribute('aria-valuenow', String(e.value));
+      wheel.style.setProperty('--v', String(e.value / 127));
+    }
   });
 
   const bannerEls = new Map<BannerKind, HTMLElement>();
