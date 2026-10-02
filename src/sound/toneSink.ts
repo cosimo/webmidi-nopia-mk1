@@ -1,14 +1,16 @@
 import * as Tone from 'tone';
 import type { InternalSink } from './moduleOutputs';
+import { NoteStarts } from './noteStarts';
 import type { Voice } from './presets';
 
 const DISPOSE_AFTER_MS = 4000; // let release tails finish before disposing
+const END_GAP = 0.001; // s: the earliest a note may end after it starts
 
 /** A module's internal sound: Voice → (vibrato) → volume → destination. */
 export class ToneSink implements InternalSink {
   private gain = new Tone.Gain(0);
   private vibrato: Tone.Vibrato | null = null;
-  private sounding = new Set<number>();
+  private notes = new NoteStarts(END_GAP);
 
   constructor(
     private voice: Voice,
@@ -26,14 +28,14 @@ export class ToneSink implements InternalSink {
 
   noteOn(note: number, velocity: number, at?: number): void {
     const t = at ?? Tone.immediate();
-    if (this.sounding.has(note)) this.voice.release(note, t);
+    if (this.notes.has(note)) this.voice.release(note, this.notes.end(note, t)!);
     this.voice.attack(note, velocity / 127, t);
-    this.sounding.add(note);
+    this.notes.start(note, t);
   }
 
   noteOff(note: number, at?: number): void {
-    if (!this.sounding.delete(note)) return;
-    this.voice.release(note, at ?? Tone.immediate());
+    if (!this.notes.has(note)) return;
+    this.voice.release(note, this.notes.end(note, at ?? Tone.immediate())!);
   }
 
   pitchBend(bend: number): void {
@@ -45,8 +47,9 @@ export class ToneSink implements InternalSink {
   }
 
   allNotesOff(): void {
-    this.voice.releaseAll(Tone.immediate());
-    this.sounding.clear();
+    // a release before a queued attack would leave that note sounding: release after the last start
+    const now = Tone.immediate();
+    this.voice.releaseAll(Math.max(now, ...this.notes.endAll(now).map(([, t]) => t!)));
   }
 
   setVolume(volume: number): void {

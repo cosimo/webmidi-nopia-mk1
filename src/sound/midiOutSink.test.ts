@@ -81,6 +81,21 @@ describe('MidiOutSink', () => {
     ]);
   });
 
+  it('a note-off never overtakes its queued note-on', () => {
+    const sent: [number[], number | undefined][] = [];
+    const sink = new MidiOutSink({ send: (d, t) => void sent.push([d, t]) }, 1, (at) => at * 1000);
+    sink.noteOn(64, 100, 5); // queued in the port for 5000 ms
+    sink.noteOff(64); // "now" would reach the synth first
+    sink.noteOn(67, 100, 1);
+    sink.noteOff(67, 2);
+    expect(sent).toEqual([
+      [[0x90, 64, 100], 5000],
+      [[0x80, 64, 0], 5001],
+      [[0x90, 67, 100], 1000],
+      [[0x80, 67, 0], 2000],
+    ]);
+  });
+
   it('survives a port that throws', () => {
     const sink = new MidiOutSink({ send: () => { throw new Error('disconnected'); } }, 1);
     expect(() => {

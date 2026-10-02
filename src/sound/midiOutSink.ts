@@ -1,4 +1,5 @@
 import type { NoteSink } from '../modules/module';
+import { NoteStarts } from './noteStarts';
 
 export interface MidiOutputLike {
   send(data: number[], timestamp?: number): void;
@@ -6,7 +7,7 @@ export interface MidiOutputLike {
 
 /** Sends a module's notes to one MIDI output port and channel, tracking sounding notes. */
 export class MidiOutSink implements NoteSink {
-  private sounding = new Map<number, number | undefined>(); // note → its note-on's port timestamp
+  private notes = new NoteStarts(1); // port timestamps (ms) of the sounding notes' note-ons
   private ch: number;
 
   constructor(
@@ -19,14 +20,14 @@ export class MidiOutSink implements NoteSink {
 
   noteOn(note: number, velocity: number, at?: number): void {
     const t = this.stamp(at);
-    if (this.sounding.has(note)) this.send([0x80 | this.ch, note, 0], t);
+    if (this.notes.has(note)) this.send([0x80 | this.ch, note, 0], this.notes.end(note, t));
     this.send([0x90 | this.ch, note, Math.min(127, Math.max(1, Math.round(velocity)))], t);
-    this.sounding.set(note, t);
+    this.notes.start(note, t);
   }
 
   noteOff(note: number, at?: number): void {
-    if (!this.sounding.delete(note)) return;
-    this.send([0x80 | this.ch, note, 0], this.stamp(at));
+    if (!this.notes.has(note)) return;
+    this.send([0x80 | this.ch, note, 0], this.notes.end(note, this.stamp(at)));
   }
 
   pitchBend(bend: number): void {
@@ -39,14 +40,11 @@ export class MidiOutSink implements NoteSink {
   }
 
   allNotesOff(): void {
-    // a note-on queued for later would arrive after an immediate note-off: end it just after it starts
     let last: number | undefined;
-    for (const [note, t] of this.sounding) {
-      const off = t === undefined ? undefined : t + 1;
-      this.send([0x80 | this.ch, note, 0], off);
-      if (off !== undefined && (last === undefined || off > last)) last = off;
+    for (const [note, t] of this.notes.endAll()) {
+      this.send([0x80 | this.ch, note, 0], t);
+      if (t !== undefined && (last === undefined || t > last)) last = t;
     }
-    this.sounding.clear();
     this.send([0xb0 | this.ch, 123, 0], last);
   }
 
