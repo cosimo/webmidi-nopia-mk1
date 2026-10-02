@@ -98,7 +98,12 @@ npm run typecheck
 - The Arp (enable it in its module settings) plays the held chord on the tempo grid; its pattern,
   rate, octaves and gate are in its settings.
 - The mod strip (CC1) strums the held chord. Settings → Mod strip switches it to Melody vibrato.
+- The looper (header): **Verse**, **Chorus**, **Bridge** slots with **Rec** (record from the next
+  bar; again to stop at the end of the bar and loop; again to overdub), **Play** (play/stop) and
+  **Clear**. Selecting another slot while one plays switches at the end of the loop. Loops follow
+  later key, mode and Extensions changes.
 - Settings: split point, key-select note, master FX, control mappings with MIDI learn.
 - Panic silences everything, internal and MIDI.
 
-Hardware checklists: [milestone 1](docs/hardware-check-m1.md), [milestone 2](docs/hardware-check-m2.md).
+Hardware checklists: [milestone 1](docs/hardware-check-m1.md), [milestone 2](docs/hardware-check-m2.md),
+[milestone 3](docs/hardware-check-m3.md).
