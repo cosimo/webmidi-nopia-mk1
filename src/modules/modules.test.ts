@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { BusEvent, BusEventBody } from '../core/bus';
+import type { ModStripFunction } from '../core/store';
 import { chordForKey } from '../harmony/chordEngine';
 import type { ExtLevel, HarmonySettings } from '../harmony/theory';
 import { BassModule } from './bass';
@@ -91,21 +92,21 @@ describe('BassModule', () => {
 
 describe('MelodyModule', () => {
   it('plays melody notes as they come', () => {
-    const mel = new MelodyModule(sink);
+    const mel = new MelodyModule(sink, () => 'vibrato');
     send(mel, { type: 'melodyOn', note: 72, velocity: 80 });
     send(mel, { type: 'melodyOff', note: 72 });
     expect(sink.take()).toEqual(['on 72 80', 'off 72']);
   });
 
   it('forwards pitch bend and CC1', () => {
-    const mel = new MelodyModule(sink);
+    const mel = new MelodyModule(sink, () => 'vibrato');
     send(mel, { type: 'pitchBend', bend: -0.5 });
     send(mel, { type: 'mod', value: 99 });
     expect(sink.take()).toEqual(['bend -0.5', 'cc 1 99']);
   });
 
   it('defers note-offs while sustain is down', () => {
-    const mel = new MelodyModule(sink);
+    const mel = new MelodyModule(sink, () => 'vibrato');
     send(mel, { type: 'sustain', on: true });
     send(mel, { type: 'melodyOn', note: 72, velocity: 80 });
     send(mel, { type: 'melodyOff', note: 72 });
@@ -115,7 +116,7 @@ describe('MelodyModule', () => {
   });
 
   it('does not release a re-struck note when the pedal lifts while it is held', () => {
-    const mel = new MelodyModule(sink);
+    const mel = new MelodyModule(sink, () => 'vibrato');
     send(mel, { type: 'sustain', on: true });
     send(mel, { type: 'melodyOn', note: 72, velocity: 80 });
     send(mel, { type: 'melodyOff', note: 72 });
@@ -124,8 +125,18 @@ describe('MelodyModule', () => {
     expect(sink.take()).toEqual(['on 72 80', 'on 72 90']);
   });
 
+  it('resets vibrato when the mod strip switches away from Vibrato, and then ignores CC1', () => {
+    let fn: ModStripFunction = 'vibrato';
+    const mel = new MelodyModule(sink, () => fn);
+    send(mel, { type: 'mod', value: 90 });
+    fn = 'strum';
+    mel.modStripChanged();
+    send(mel, { type: 'mod', value: 50 });
+    expect(sink.take()).toEqual(['cc 1 90', 'cc 1 0']);
+  });
+
   it('panic silences everything and forgets sustain', () => {
-    const mel = new MelodyModule(sink);
+    const mel = new MelodyModule(sink, () => 'vibrato');
     send(mel, { type: 'sustain', on: true });
     send(mel, { type: 'melodyOn', note: 72, velocity: 80 });
     send(mel, { type: 'panic' });

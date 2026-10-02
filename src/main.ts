@@ -46,7 +46,7 @@ const modules = [
   new KeysModule(outputs.sink('keys')),
   new PadModule(outputs.sink('pad')),
   new BassModule(outputs.sink('bass')),
-  new MelodyModule(outputs.sink('melody')),
+  new MelodyModule(outputs.sink('melody'), () => store.get().modStrip),
 ];
 bus.subscribe((e) => {
   for (const m of modules) m.handle(e);
