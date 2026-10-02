@@ -84,8 +84,7 @@ test.describe('rhythm', () => {
     await page.getByTestId('melody-port').selectOption(SYNTH);
     await page.getByTestId('strum-open').click();
     await page.getByTestId('strum-port').selectOption(SYNTH);
-    await page.getByTestId('settings-toggle').click();
-    await page.getByTestId('mod-strip').selectOption('vibrato');
+    await page.getByTestId('mod-strip').click(); // the panel's Strum · Vib switch
     await sendMidi(page, [0x90, 48, 100]);
     await sendMidi(page, [0xb0, 1, 90]);
     await expect.poll(async () => (await midiSent(page)).map((m) => m.data.join(','))).toContain('180,1,90');

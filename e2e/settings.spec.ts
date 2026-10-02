@@ -23,7 +23,7 @@ test.describe('settings, learn and monitor', () => {
 
   test('learn mode: click a control, then move a hardware control', async ({ page }) => {
     await page.getByTestId('learn-toggle').click();
-    const ext = page.locator('.controls [data-learn="extensions"]');
+    const ext = page.locator('.faceplate [data-learn="extensions"]');
     await ext.click();
     await expect(ext).toHaveClass(/armed/);
     await sendMidi(page, [0xb1, 40, 0]);

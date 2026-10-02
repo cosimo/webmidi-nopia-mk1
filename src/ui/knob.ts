@@ -8,52 +8,56 @@ export interface Knob {
 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const angle = (v: number) => -135 + v * 270;
 
-/** A round knob (0..1): vertical drag, mouse wheel, arrow keys. */
+/** A white cylindrical knob (0..1) with an indicator line: vertical drag, mouse wheel, arrow keys. */
 export function createKnob(opts: {
-  label: string;
+  label: string; // its name, for screen readers and the hover tooltip
   value: number;
   onInput: (value: number) => void;
   learn?: ControlTarget;
-  large?: boolean;
+  size?: 'small' | 'medium' | 'large' | 'dome';
+  ticks?: number; // marks around the knob, one per step (Extensions' four levels)
 }): Knob {
   let value = opts.value;
-  const dial = h('div', {
-    class: 'knob-dial',
+  const el = h('div', {
+    class: `knob ${opts.size ?? 'medium'}`,
     role: 'slider',
     tabindex: 0,
+    title: opts.label,
     'aria-label': opts.label,
     'aria-valuemin': 0,
     'aria-valuemax': 100,
+    'data-learn': opts.learn,
   });
-  const el = h(
-    'div',
-    { class: opts.large ? 'knob large' : 'knob', 'data-learn': opts.learn },
-    dial,
-    h('span', { class: 'knob-label' }, opts.label),
-  );
+  const ticks = opts.ticks ?? 0;
+  for (let i = 0; i < ticks; i++) {
+    const tick = h('span', { class: 'tick' });
+    tick.style.setProperty('--t', `${angle((i + 0.5) / ticks)}deg`);
+    el.append(tick);
+  }
   const render = () => {
-    dial.style.setProperty('--angle', `${-135 + value * 270}deg`);
-    dial.setAttribute('aria-valuenow', String(Math.round(value * 100)));
+    el.style.setProperty('--angle', `${angle(value)}deg`);
+    el.setAttribute('aria-valuenow', String(Math.round(value * 100)));
   };
   const change = (v: number) => {
     value = clamp01(v);
     render();
     opts.onInput(value);
   };
-  dial.addEventListener('pointerdown', (e) => {
+  el.addEventListener('pointerdown', (e) => {
     const startY = e.clientY;
     const startValue = value;
-    dial.setPointerCapture(e.pointerId);
+    el.setPointerCapture(e.pointerId);
     const move = (ev: PointerEvent) => change(startValue + (startY - ev.clientY) / 200);
     const up = () => {
-      dial.removeEventListener('pointermove', move);
-      dial.removeEventListener('pointerup', up);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
     };
-    dial.addEventListener('pointermove', move);
-    dial.addEventListener('pointerup', up);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
   });
-  dial.addEventListener(
+  el.addEventListener(
     'wheel',
     (e) => {
       e.preventDefault();
@@ -61,7 +65,7 @@ export function createKnob(opts: {
     },
     { passive: false },
   );
-  dial.addEventListener('keydown', (e) => {
+  el.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowUp' || e.key === 'ArrowRight') change(value + 0.05);
     if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') change(value - 0.05);
   });

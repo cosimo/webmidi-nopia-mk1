@@ -1,9 +1,8 @@
-import { CONTROL_TARGETS, type EncoderMode, type ModStripFunction, type Settings, type Store } from '../core/store';
+import { CONTROL_TARGETS, type EncoderMode, type Settings, type Store } from '../core/store';
 import { midiNoteName } from '../harmony/theory';
 import { TARGET_INFO, type ControlMap } from '../input/controlMap';
 import type { InputRouter } from '../input/inputRouter';
 import { createSelect, h } from './dom';
-import { createKnob, type Knob } from './knob';
 
 const MODES = [
   { value: 'detect', label: 'auto' },
@@ -11,7 +10,7 @@ const MODES = [
   { value: 'relative', label: 'relative' },
 ];
 
-/** Settings drawer: split point, key-select note, control mappings, master FX. */
+/** Settings drawer: split point, key-select note and the control mappings (the rest is on the panel). */
 export function createSettings(deps: { store: Store; router: InputRouter; controls: ControlMap }) {
   const { store, router, controls } = deps;
 
@@ -41,10 +40,6 @@ export function createSettings(deps: { store: Store; router: InputRouter; contro
     noteField('Key-select note', 'key-select', 'keySelectNote'),
   ];
 
-  const modStrip = createSelect({ 'data-testid': 'mod-strip' }, (v) =>
-    store.update((s) => (s.modStrip = v as ModStripFunction)),
-  );
-
   const rows = CONTROL_TARGETS.map((target) => {
     const binding = h('td', { 'data-testid': `binding-${target}` });
     const mode = createSelect({}, (v) => controls.setMode(target, v as EncoderMode));
@@ -54,21 +49,11 @@ export function createSettings(deps: { store: Store; router: InputRouter; contro
     return { target, el, binding, mode, learn };
   });
 
-  const masterKnobs: [Knob, (s: Settings) => number][] = [
-    [createKnob({ label: 'Reverb', value: 0, learn: 'reverb', onInput: (v) => store.update((s) => (s.master.reverb = v)) }), (s) => s.master.reverb],
-    [createKnob({ label: 'Delay', value: 0, learn: 'delay', onInput: (v) => store.update((s) => (s.master.delay = v)) }), (s) => s.master.delay],
-    [createKnob({ label: 'Tone', value: 0, learn: 'tone', onInput: (v) => store.update((s) => (s.master.tone = v)) }), (s) => s.master.tone],
-    [createKnob({ label: 'Master', value: 0, learn: 'master', onInput: (v) => store.update((s) => (s.master.volume = v)) }), (s) => s.master.volume],
-  ];
-
   const el = h(
     'aside',
     { class: 'drawer', hidden: true, 'data-testid': 'settings' },
     h('h2', {}, 'Settings'),
     ...noteFields.map((f) => f.el),
-    h('label', { class: 'note-field' }, 'Mod strip (CC1)', modStrip.el),
-    h('h3', {}, 'Master'),
-    h('div', { class: 'master-knobs' }, ...masterKnobs.map(([k]) => k.el)),
     h('h3', {}, 'Control mappings'),
     h('table', { class: 'mappings' }, h('tbody', {}, ...rows.map((r) => r.el))),
   );
@@ -89,8 +74,6 @@ export function createSettings(deps: { store: Store; router: InputRouter; contro
         if (document.activeElement !== f.input) f.input.value = String(s[f.field]);
         f.name.textContent = midiNoteName(s[f.field]);
       }
-      modStrip.setOptions([{ value: 'strum', label: 'Strum' }, { value: 'vibrato', label: 'Vibrato' }], s.modStrip);
-      for (const [knob, get] of masterKnobs) if (Math.abs(knob.value() - get(s)) > 1e-6) knob.set(get(s));
       for (const r of rows) {
         const b = s.bindings.find((x) => x.target === r.target);
         r.binding.textContent = b ? `CC ${b.cc} · ch ${b.channel}` : '—';

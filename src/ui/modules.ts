@@ -2,35 +2,44 @@ import { MODULE_IDS, PRESET_CHOICES, type ModuleId, type ModuleSettings, type Se
 import { createSelect, h } from './dom';
 import { createKnob } from './knob';
 
-const NAMES: Record<ModuleId, string> = { keys: 'Keys', pad: 'Pad', bass: 'Bass', melody: 'Melody', arp: 'Arp', strum: 'Strum' };
+export const MODULE_NAMES: Record<ModuleId, string> = {
+  keys: 'Keys', pad: 'Pad', bass: 'Bass', melody: 'Melody', arp: 'Arp', strum: 'Strum',
+};
 const CHANNELS = Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `ch ${i + 1}` }));
 
 type Extra = { el: HTMLElement; render(s: Settings): void };
 
-/** A volume knob per module; the module name opens its settings. */
-export function createModuleStrip(deps: {
+/** A volume knob per module; its engraved name opens the module's settings (spec §5, §7). */
+export function createModules(deps: {
   store: Store;
   outputNames: () => string[];
   portMissing: (id: ModuleId) => boolean;
   extras?: Partial<Record<ModuleId, Extra>>;
 }) {
   const { store } = deps;
-  const set = (id: ModuleId, patch: Partial<ModuleSettings>) =>
-    store.update((s) => Object.assign(s.modules[id], patch));
+  const set = (id: ModuleId, patch: Partial<ModuleSettings>) => store.update((s) => Object.assign(s.modules[id], patch));
+  let open: ModuleId | null = null;
 
   const items = MODULE_IDS.map((id) => {
-    const knob = createKnob({ label: 'vol', value: store.get().modules[id].volume, learn: `vol.${id}`, onInput: (v) => set(id, { volume: v }) });
+    const knob = createKnob({
+      label: `${MODULE_NAMES[id]} volume`,
+      size: 'small',
+      value: store.get().modules[id].volume,
+      learn: `vol.${id}`,
+      onInput: (v) => set(id, { volume: v }),
+    });
+    const badge = h('span', { class: 'badge', title: 'MIDI port missing — using internal sound', hidden: true }, '⚠');
+    const label = h('button', { type: 'button', class: 'engraved module-label', 'data-testid': `${id}-open`, onclick: () => show(open === id ? null : id) }, MODULE_NAMES[id], badge);
     const enabled = h('input', { type: 'checkbox', 'data-testid': `${id}-enabled`, onchange: () => set(id, { enabled: enabled.checked }) });
     const sound = h('input', { type: 'checkbox', 'data-testid': `${id}-sound`, onchange: () => set(id, { sound: sound.checked }) });
     const preset = createSelect({ 'data-testid': `${id}-preset` }, (v) => set(id, { preset: v }));
     const port = createSelect({ 'data-testid': `${id}-port` }, (v) => set(id, { port: v === '' ? null : v }));
     const channel = createSelect({ 'data-testid': `${id}-channel` }, (v) => set(id, { channel: Number(v) }));
-    const badge = h('span', { class: 'badge', title: 'MIDI port missing — using internal sound', hidden: true }, '⚠');
     const extra = deps.extras?.[id];
-    const details = h(
-      'details',
-      { class: 'module-settings' },
-      h('summary', { 'data-testid': `${id}-open` }, NAMES[id], badge),
+    const popover = h(
+      'div',
+      { class: 'popover', hidden: true },
+      h('div', { class: 'popover-title' }, MODULE_NAMES[id]),
       h('label', {}, enabled, ' enabled'),
       h('label', {}, sound, ' internal sound'),
       h('label', {}, 'preset ', preset.el),
@@ -38,20 +47,32 @@ export function createModuleStrip(deps: {
       h('label', {}, 'channel ', channel.el),
       ...(extra ? [extra.el] : []),
     );
-    const el = h('div', { class: 'module', 'data-testid': `module-${id}` }, knob.el, details);
-    return { id, el, knob, enabled, sound, preset, port, channel, badge };
+    const group = h('div', { class: 'module', 'data-testid': `module-${id}` }, knob.el, label, popover);
+    return { id, group, knob, label, popover, enabled, sound, preset, port, channel, badge, extra };
+  });
+
+  /** Opens one module's settings (null closes them). */
+  function show(id: ModuleId | null) {
+    open = id;
+    for (const it of items) it.popover.hidden = it.id !== id;
+  }
+  document.addEventListener('pointerdown', (e) => {
+    const it = items.find((i) => i.id === open);
+    const target = e.target as Node;
+    if (it && !it.popover.contains(target) && !it.label.contains(target)) show(null);
   });
 
   return {
-    el: h('div', { class: 'module-strip' }, ...items.map((i) => i.el)),
+    items,
     render(s: Settings) {
       const outs = deps.outputNames();
       for (const it of items) {
         const m = s.modules[it.id];
         if (Math.abs(it.knob.value() - m.volume) > 1e-6) it.knob.set(m.volume);
+        it.knob.el.classList.toggle('disabled', !m.enabled);
+        it.label.classList.toggle('disabled', !m.enabled);
         it.enabled.checked = m.enabled;
         it.sound.checked = m.sound;
-        it.el.classList.toggle('disabled', !m.enabled);
         it.preset.setOptions(PRESET_CHOICES[it.id].map((p) => ({ value: p.id, label: p.label })), m.preset);
         const names = m.port !== null && !outs.includes(m.port) ? [...outs, m.port] : outs;
         it.port.setOptions(
@@ -60,7 +81,7 @@ export function createModuleStrip(deps: {
         );
         it.channel.setOptions(CHANNELS, String(m.channel));
         it.badge.hidden = !deps.portMissing(it.id);
-        deps.extras?.[it.id]?.render(s);
+        it.extra?.render(s);
       }
     },
   };

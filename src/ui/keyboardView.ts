@@ -7,25 +7,30 @@ import { h } from './dom';
 const BLACK = new Set([1, 3, 6, 8, 10]);
 
 /**
- * On-screen keyboard: one octave of chord zone below the split, 20 melody keys above.
- * Chord keys show the chord and roman numeral they currently play.
+ * On-screen keys for the notes `range` gives (lo..hi): the white keys share the width, the black
+ * keys sit between them. Chord-zone keys show the chord and roman numeral they currently play.
  */
-export function createKeyboardView(router: InputRouter) {
-  const el = h('div', { class: 'keyboard' });
+export function createKeyboardView(router: InputRouter, range: (s: Settings) => [number, number], cls: string) {
+  const el = h('div', { class: `keyboard ${cls}` });
   const keys = new Map<number, HTMLElement>();
-  let builtFor = -1;
+  let builtFor = '';
 
   router.onNote((note, on) => keys.get(note)?.classList.toggle('pressed', on));
 
-  function build(split: number) {
+  function build(lo: number, hi: number) {
     el.replaceChildren();
     keys.clear();
-    let whites = 0;
-    for (let n = Math.max(0, split - 12); n <= Math.min(127, split + 19); n++) {
+    const notes = Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => lo + i);
+    const whites = notes.filter((n) => !BLACK.has(pc(n))).length;
+    let left = 0; // white keys so far
+    for (const n of notes) {
       const black = BLACK.has(pc(n));
       const key = h('div', { class: black ? 'key black' : 'key white', 'data-testid': `key-${n}` });
-      if (black) key.style.left = `calc(${whites} * var(--white-w) - var(--black-w) / 2)`;
-      else whites++;
+      if (black) key.style.left = `${(left / whites) * 100}%`;
+      else {
+        key.style.width = `${100 / whites}%`;
+        left++;
+      }
       key.addEventListener('pointerdown', (e) => {
         key.setPointerCapture(e.pointerId);
         router.noteOn(n, 100);
@@ -37,13 +42,16 @@ export function createKeyboardView(router: InputRouter) {
       el.append(key);
     }
     el.style.setProperty('--whites', String(whites));
-    builtFor = split;
   }
 
   return {
     el,
     render(s: Settings) {
-      if (builtFor !== s.splitPoint) build(s.splitPoint);
+      const [lo, hi] = range(s).map((n) => Math.min(127, Math.max(0, n)));
+      if (builtFor !== `${lo}-${hi}`) {
+        build(lo, hi);
+        builtFor = `${lo}-${hi}`;
+      }
       for (const [n, key] of keys) {
         const chordKey = n < s.splitPoint && n !== s.keySelectNote;
         key.classList.toggle('chord-zone', chordKey);

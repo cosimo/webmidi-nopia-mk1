@@ -2,10 +2,11 @@ import { clampTempo, TapTempo, TEMPO_MAX, TEMPO_MIN } from '../core/clock';
 import type { Settings, Store } from '../core/store';
 import { h } from './dom';
 import { createKnob } from './knob';
+import { frost, toggleSwitch } from './parts';
 
 const SPAN = TEMPO_MAX - TEMPO_MIN;
 
-/** Tempo knob and field, tap tempo and the metronome toggle (spec §5.4). */
+/** Tempo knob and BPM figure, tap tempo and the metronome switch (spec §5.4). */
 export function createRhythm(store: Store) {
   const taps = new TapTempo();
   const setTempo = (bpm: number) => {
@@ -19,37 +20,35 @@ export function createRhythm(store: Store) {
   });
   const field = h('input', {
     type: 'number',
+    class: 'bpm',
     min: TEMPO_MIN,
     max: TEMPO_MAX,
+    'aria-label': 'Tempo (BPM)',
     'data-testid': 'tempo',
     onchange: () => setTempo(clampTempo(Number(field.value) || store.get().tempo)),
   });
-  const tap = h('button', {
-    type: 'button',
+  const tap = frost('round', {
+    title: 'Tap tempo',
     'data-testid': 'tap',
     onclick: () => {
       const bpm = taps.tap(performance.now());
       if (bpm !== null) setTempo(bpm);
     },
-  }, 'Tap');
-  const click = h('button', {
-    type: 'button',
+  });
+  const click = toggleSwitch({
+    title: 'Metronome click',
     'data-testid': 'metronome',
     onclick: () => store.update((s) => (s.metronome = !s.metronome)),
-  }, 'Click');
-  const el = h(
-    'div',
-    { class: 'rhythm' },
-    knob.el,
-    h('label', { class: 'bpm' }, field, ' BPM'),
-    h('div', { class: 'rhythm-buttons' }, tap, click),
-  );
+  });
   return {
-    el,
+    knob: knob.el,
+    field,
+    tap,
+    click: click.el,
     render(s: Settings) {
       if (clampTempo(TEMPO_MIN + knob.value() * SPAN) !== s.tempo) knob.set((s.tempo - TEMPO_MIN) / SPAN);
       if (document.activeElement !== field) field.value = String(s.tempo);
-      click.classList.toggle('active', s.metronome);
+      click.set(s.metronome);
     },
   };
 }

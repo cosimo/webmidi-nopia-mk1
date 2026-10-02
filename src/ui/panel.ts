@@ -6,13 +6,15 @@ import type { InputRouter } from '../input/inputRouter';
 import type { MidiPorts } from '../input/midiAccess';
 import type { Looper } from '../modules/looper';
 import { createArpSettings } from './arpSettings';
-import { createSelect, h } from './dom';
+import { createSelect, h, type Attrs } from './dom';
+import { createFaceplate } from './faceplate';
 import { createKeyboardView } from './keyboardView';
 import { createKnob } from './knob';
 import { createLooperControls } from './looperControls';
 import { createMidiMonitor } from './midiMonitor';
-import { createModuleStrip } from './moduleStrip';
+import { createModules } from './modules';
 import { createOled } from './oled';
+import { engraved, frost, toggleSwitch } from './parts';
 import { createRhythm } from './rhythm';
 import { createSettings } from './settings';
 import { createTonalSelector } from './tonalSelector';
@@ -36,68 +38,115 @@ const levelOf = (v: number) => Math.min(3, Math.floor(v * 4)) as ExtLevel;
 export function mountPanel(root: HTMLElement, deps: PanelDeps) {
   const { store, bus, router, controls } = deps;
 
-  // header
+  // the strip above the panel: ports and system buttons
   const inputSelect = createSelect({ 'data-testid': 'input-select' }, (v) => store.update((s) => (s.input = v)));
   const outputSelect = createSelect({ 'data-testid': 'output-all' }, (v) => {
     if (v !== '*') store.update((s) => MODULE_IDS.forEach((id) => (s.modules[id].port = v === '' ? null : v)));
   });
-  const learnButton = h('button', { 'data-testid': 'learn-toggle', onclick: () => setLearning(!learning) }, 'Learn');
+  const textButton = (text: string, attrs: Attrs) => h('button', { type: 'button', class: 'text-button', ...attrs }, text);
   const monitor = createMidiMonitor();
   const settings = createSettings({ store, router, controls });
-  const header = h(
+  const learnButton = textButton('Learn', { 'data-testid': 'learn-toggle', onclick: () => setLearning(!learning) });
+  const strip = h(
     'header',
-    { class: 'header' },
-    h('h1', {}, 'nopia', h('span', {}, ' web')),
-    h('label', {}, 'MIDI in ', inputSelect.el),
-    h('label', {}, 'MIDI out (all) ', outputSelect.el),
-    h('button', { 'data-testid': 'monitor-toggle', onclick: () => monitor.toggle() }, 'Monitor'),
+    { class: 'strip' },
+    h('div', { class: 'wordmark' }, 'nopia', h('span', {}, ' web')),
+    h('label', {}, 'MIDI in', inputSelect.el),
+    h('label', {}, 'out', outputSelect.el),
+    textButton('Monitor', { 'data-testid': 'monitor-toggle', onclick: () => monitor.toggle() }),
     learnButton,
-    h('button', { 'data-testid': 'settings-toggle', onclick: () => settings.toggle() }, 'Settings'),
-    createLooperControls(deps.looper).el,
-    h('button', { class: 'panic', 'data-learn': 'panic', 'data-testid': 'panic', onclick: () => deps.panic() }, 'Panic'),
+    textButton('Settings', { 'data-testid': 'settings-toggle', onclick: () => settings.toggle() }),
   );
   const banners = h('div', { class: 'banners' });
 
-  // panel
-  const toggleButton = (target: ControlTarget, flip: (s: Settings) => void) =>
-    h('button', { class: 'toggle', 'data-learn': target, 'data-testid': target, onclick: () => store.update(flip) });
-  const layoutButton = toggleButton('layout', (s) => (s.layout = s.layout === 'real' ? 'static' : 'real'));
-  const tonalityButton = toggleButton('tonality', (s) => (s.tonality = s.tonality === 'major' ? 'minor' : 'major'));
-  const tableButton = toggleButton('table', (s) => (s.table = s.table === 'secdom' ? 'borrowed' : 'secdom'));
+  // the faceplate
+  const flip = (target: ControlTarget, update: (s: Settings) => void) =>
+    frost('square', { 'data-testid': target, 'data-learn': target, onclick: () => store.update(update) });
+  const layoutButton = flip('layout', (s) => (s.layout = s.layout === 'real' ? 'static' : 'real'));
+  const tonalityButton = flip('tonality', (s) => (s.tonality = s.tonality === 'major' ? 'minor' : 'major'));
+  const table = toggleSwitch({
+    title: 'Secondary dominants / Borrowed',
+    'data-testid': 'table',
+    'data-learn': 'table',
+    onclick: () => store.update((s) => (s.table = s.table === 'secdom' ? 'borrowed' : 'secdom')),
+  });
+  const modStrip = toggleSwitch({
+    title: 'Mod strip: Strum / Vibrato',
+    'data-testid': 'mod-strip',
+    onclick: () => store.update((s) => (s.modStrip = s.modStrip === 'strum' ? 'vibrato' : 'strum')),
+  });
+  const stateLabel = (testid: string) => engraved('', { 'data-testid': testid });
+  const labels = {
+    layout: stateLabel('layout-label'),
+    tonality: stateLabel('tonality-label'),
+    table: stateLabel('table-label'),
+    modStrip: stateLabel('mod-strip-label'),
+  };
   const extKnob = createKnob({
     label: 'Extensions',
+    size: 'large',
+    ticks: 4,
     value: (store.get().extLevel + 0.5) / 4,
     learn: 'extensions',
-    large: true,
     onInput: (v) => {
       if (levelOf(v) !== store.get().extLevel) store.update((s) => (s.extLevel = levelOf(v)));
     },
   });
+  type MasterKey = keyof Settings['master'];
+  const masterKnob = (key: MasterKey, label: string, learn: ControlTarget, size: 'small' | 'medium' | 'dome') => {
+    const knob = createKnob({ label, size, learn, value: store.get().master[key], onInput: (v) => store.update((s) => (s.master[key] = v)) });
+    return { knob, render: (s: Settings) => Math.abs(knob.value() - s.master[key]) > 1e-6 && knob.set(s.master[key]) };
+  };
+  const fx = {
+    reverb: masterKnob('reverb', 'Reverb', 'reverb', 'medium'),
+    master: masterKnob('volume', 'Master volume', 'master', 'dome'),
+    tone: masterKnob('tone', 'Tone', 'tone', 'small'),
+    delay: masterKnob('delay', 'Delay', 'delay', 'small'),
+  };
   const oled = createOled();
   const tonal = createTonalSelector(store);
-  const keyboard = createKeyboardView(router);
+  const chordKeys = createKeyboardView(router, (s) => [s.splitPoint - 12, s.splitPoint - 1], 'chord-keys');
+  const melodyKeys = createKeyboardView(router, (s) => [s.splitPoint, s.splitPoint + 19], 'melody-strip');
   const rhythm = createRhythm(store);
-  const strip = createModuleStrip({
+  const looper = createLooperControls(deps.looper);
+  const panic = frost('square', { class: 'panic', title: 'Panic', 'data-testid': 'panic', 'data-learn': 'panic', onclick: () => deps.panic() });
+  const modules = createModules({
     store,
     outputNames: () => deps.ports()?.outputNames() ?? [],
     portMissing: deps.portMissing,
     extras: { arp: createArpSettings(store) },
   });
-  const panel = h(
-    'main',
-    { class: 'panel' },
-    h('div', { class: 'controls' }, layoutButton, tonalityButton, tableButton, extKnob.el, rhythm.el),
-    oled.el,
-    tonal.el,
-    keyboard.el,
-    strip.el,
-  );
+  const plate = createFaceplate({
+    modules: modules.items.map((m) => ({ id: m.id, group: m.group, knob: m.knob.el, label: m.label, popover: m.popover })),
+    looper,
+    panic,
+    layout: layoutButton,
+    layoutLabel: labels.layout,
+    tonality: tonalityButton,
+    tonalityLabel: labels.tonality,
+    table: table.el,
+    tableLabel: labels.table,
+    tempo: rhythm.knob,
+    bpm: rhythm.field,
+    tap: rhythm.tap,
+    click: rhythm.click,
+    extensions: extKnob.el,
+    modStrip: modStrip.el,
+    modStripLabel: labels.modStrip,
+    reverb: fx.reverb.knob.el,
+    master: fx.master.knob.el,
+    tone: fx.tone.knob.el,
+    delay: fx.delay.knob.el,
+    display: oled.el,
+    chordKeys: chordKeys.el,
+    tonics: tonal.buttons,
+  });
   const overlay = h(
     'div',
     { class: 'overlay', 'data-testid': 'start-overlay', onclick: () => void deps.startAudio() },
     h('div', {}, 'Click to start audio'),
   );
-  root.replaceChildren(header, banners, panel, settings.el, monitor.el, overlay);
+  root.replaceChildren(strip, banners, h('main', { class: 'stage' }, plate, melodyKeys.el), settings.el, monitor.el, overlay);
 
   // learn mode: clicking a [data-learn] control arms it instead of using it
   let learning = false;
@@ -136,15 +185,22 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
   });
 
   function render(s: Settings) {
-    layoutButton.textContent = s.layout === 'real' ? 'Real' : 'Static';
-    tonalityButton.textContent = s.tonality === 'major' ? 'Major' : 'Minor';
-    tableButton.textContent = s.table === 'secdom' ? 'Sec. dominants' : 'Borrowed';
+    labels.layout.textContent = s.layout === 'real' ? 'Real' : 'Static';
+    layoutButton.classList.toggle('lit', s.layout === 'static');
+    labels.tonality.textContent = s.tonality === 'major' ? 'Major' : 'Minor';
+    tonalityButton.classList.toggle('lit', s.tonality === 'minor');
+    labels.table.textContent = s.table === 'secdom' ? 'Sec. dom' : 'Borrowed';
+    table.set(s.table === 'borrowed');
+    labels.modStrip.textContent = s.modStrip === 'strum' ? 'Strum' : 'Vibrato';
+    modStrip.set(s.modStrip === 'vibrato');
     if (levelOf(extKnob.value()) !== s.extLevel) extKnob.set((s.extLevel + 0.5) / 4);
+    for (const k of Object.values(fx)) k.render(s);
     oled.showStatus(s);
     tonal.render(s);
     rhythm.render(s);
-    keyboard.render(s);
-    strip.render(s);
+    chordKeys.render(s);
+    melodyKeys.render(s);
+    modules.render(s);
     settings.render(s);
   }
   store.subscribe((s) => render(s));
@@ -190,7 +246,7 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
       outputSelect.setOptions(outOptions, chosen.size > 1 ? '*' : [...chosen][0]);
       const loop = current !== null && MODULE_IDS.some((id) => s.modules[id].port === current);
       setBanner('feedback', loop ? `“${current}” is both the MIDI input and a module output — this can cause a feedback loop.` : null);
-      strip.render(s);
+      modules.render(s);
     },
   };
 }

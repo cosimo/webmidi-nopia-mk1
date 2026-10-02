@@ -1,5 +1,5 @@
 type Handler = (e: Event) => void;
-type Attrs = Record<string, string | number | boolean | Handler | undefined>;
+export type Attrs = Record<string, string | number | boolean | Handler | undefined>;
 
 /** Create an element: attributes, `on<event>` listeners, then children. */
 export function h<K extends keyof HTMLElementTagNameMap>(
