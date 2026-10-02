@@ -9,6 +9,7 @@ export type BusEventBody =
   | { type: 'pitchBend'; bend: number } // -1..1
   | { type: 'mod'; value: number } // CC1, 0..127
   | { type: 'sustain'; on: boolean }
+  | { type: 'tick'; tick: number; at: number; dur: number } // grid tick: index from the start, AudioContext time (s), seconds per tick
   | { type: 'panic' };
 
 export type BusEvent = BusEventBody & { time: number }; // time: performance.now() ms
