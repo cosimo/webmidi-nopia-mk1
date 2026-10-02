@@ -4,10 +4,12 @@ import type { ExtLevel } from '../harmony/theory';
 import type { ControlMap } from '../input/controlMap';
 import type { InputRouter } from '../input/inputRouter';
 import type { MidiPorts } from '../input/midiAccess';
+import type { Looper } from '../modules/looper';
 import { createArpSettings } from './arpSettings';
 import { createSelect, h } from './dom';
 import { createKeyboardView } from './keyboardView';
 import { createKnob } from './knob';
+import { createLooperControls } from './looperControls';
 import { createMidiMonitor } from './midiMonitor';
 import { createModuleStrip } from './moduleStrip';
 import { createOled } from './oled';
@@ -24,6 +26,7 @@ export interface PanelDeps {
   portMissing: (id: ModuleId) => boolean;
   panic: () => void;
   startAudio: () => Promise<void>;
+  looper: Looper;
 }
 
 export type BannerKind = 'midi' | 'input' | 'feedback';
@@ -50,6 +53,7 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
     h('button', { 'data-testid': 'monitor-toggle', onclick: () => monitor.toggle() }, 'Monitor'),
     learnButton,
     h('button', { 'data-testid': 'settings-toggle', onclick: () => settings.toggle() }, 'Settings'),
+    createLooperControls(deps.looper).el,
     h('button', { class: 'panic', 'data-learn': 'panic', 'data-testid': 'panic', onclick: () => deps.panic() }, 'Panic'),
   );
   const banners = h('div', { class: 'banners' });

@@ -1,8 +1,8 @@
 import * as Tone from 'tone';
 import { Bus } from './core/bus';
 import { PPQ, TICKS_PER_BAR } from './core/clock';
-import { paramChanges } from './core/params';
-import { MODULE_IDS, Store } from './core/store';
+import { paramChanges, writeParam } from './core/params';
+import { MODULE_IDS, Store, type ControlTarget } from './core/store';
 import { ChordEngine } from './harmony/chordEngine';
 import { ControlMap } from './input/controlMap';
 import { InputRouter } from './input/inputRouter';
@@ -10,6 +10,7 @@ import { pickInput, requestMidi, type MidiPorts } from './input/midiAccess';
 import { ArpModule } from './modules/arp';
 import { BassModule } from './modules/bass';
 import { KeysModule } from './modules/keys';
+import { Looper } from './modules/looper';
 import { MelodyModule } from './modules/melody';
 import type { Module } from './modules/module';
 import { PadModule } from './modules/pad';
@@ -41,6 +42,12 @@ function browserStorage(): Storage | null {
 const store = new Store(browserStorage());
 const bus = new Bus();
 const engine = new ChordEngine(() => store.get(), (e) => bus.emit(e));
+const looper = new Looper({
+  settings: () => store.get(),
+  emit: (e) => bus.emit(e),
+  applyParam: (p) => store.update((s) => writeParam(s, p)),
+  now: () => Tone.immediate(),
+});
 const master = new Master();
 let midi: MidiPorts | null = null;
 const outputs = new ModuleOutputs({
@@ -79,12 +86,24 @@ function panic(): void {
   router.reset();
 }
 
-const controls = new ControlMap(store, { trigger: (t) => t === 'panic' && panic() });
+const TRIGGERS: Partial<Record<ControlTarget, () => void>> = {
+  panic,
+  loopRec: () => looper.record(),
+  loopPlay: () => looper.play(),
+  loopClear: () => looper.clear(),
+  slotVerse: () => looper.select('verse'),
+  slotChorus: () => looper.select('chorus'),
+  slotBridge: () => looper.select('bridge'),
+};
+const controls = new ControlMap(store, { trigger: (t) => TRIGGERS[t]?.() });
 const router = new InputRouter({ engine, bus, store, controls });
 
 const HARMONY_KEYS = ['tonic', 'tonality', 'layout', 'table', 'extLevel'] as const;
 store.subscribe((next, prev) => {
-  if (HARMONY_KEYS.some((k) => next[k] !== prev[k])) engine.settingsChanged();
+  if (HARMONY_KEYS.some((k) => next[k] !== prev[k])) {
+    engine.settingsChanged();
+    looper.settingsChanged();
+  }
   outputs.sync(next);
   master.apply(next.master);
   if (next.tempo !== prev.tempo) transport.setTempo(next.tempo);
@@ -103,7 +122,10 @@ const ui = mountPanel(document.querySelector<HTMLElement>('#app')!, {
   portMissing: (id) => outputs.portMissing(id),
   panic,
   startAudio: () => Tone.start(),
+  looper,
 });
+// last: when the looper re-sends its chord on a live release, every listener has seen the release
+bus.subscribe((e) => looper.handle(e));
 
 const context = Tone.getContext();
 const onAudioState = () => {

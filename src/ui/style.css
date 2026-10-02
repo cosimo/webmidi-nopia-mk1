@@ -207,3 +207,11 @@ button.active { background: var(--accent); }
 .rhythm .bpm input { width: 64px; }
 .rhythm-buttons { display: flex; gap: 6px; }
 .arp-settings { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--panel-shade); }
+.looper { display: flex; gap: 6px; align-items: center; }
+.looper .slot { min-width: 84px; background: #a9b6bc; }
+.looper .slot.selected { box-shadow: 0 0 0 2px var(--ink); }
+.looper .slot.stopped { background: var(--button); }
+.looper .slot.playing { background: #4f9a63; }
+.looper .slot.recording, .looper .slot.overdubbing { background: #c9473a; }
+.looper .slot.waiting { animation: blink 0.5s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0.45; } }
