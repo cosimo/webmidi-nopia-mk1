@@ -1,6 +1,7 @@
 import * as Tone from 'tone';
 import { Bus } from './core/bus';
 import { PPQ, TICKS_PER_BAR } from './core/clock';
+import { paramChanges } from './core/params';
 import { MODULE_IDS, Store } from './core/store';
 import { ChordEngine } from './harmony/chordEngine';
 import { ControlMap } from './input/controlMap';
@@ -88,6 +89,7 @@ store.subscribe((next, prev) => {
   master.apply(next.master);
   if (next.tempo !== prev.tempo) transport.setTempo(next.tempo);
   if (next.modStrip !== prev.modStrip) melody.modStripChanged();
+  for (const p of paramChanges(prev, next)) bus.emit({ type: 'param', ...p });
 });
 outputs.sync(store.get());
 master.apply(store.get().master);

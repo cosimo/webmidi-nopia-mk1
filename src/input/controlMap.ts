@@ -1,10 +1,10 @@
 import { clampTempo, TEMPO_MAX, TEMPO_MIN } from '../core/clock';
+import { readParam, writeParam, type ParamKey } from '../core/params';
 import {
   ARP_RATES,
   type Binding,
   type ControlTarget,
   type EncoderMode,
-  type ModuleId,
   type Settings,
   type Store,
 } from '../core/store';
@@ -46,17 +46,12 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const relativeStep = (target: ControlTarget) => (target === 'tempo' ? 1 / TEMPO_SPAN : 1 / 127);
 
 function getUnit(s: Settings, target: ControlTarget): number {
-  if (target.startsWith('vol.')) return s.modules[target.slice(4) as ModuleId].volume;
-  if (target === 'master') return s.master.volume;
-  if (target === 'tempo') return (s.tempo - TEMPO_MIN) / TEMPO_SPAN;
-  return s.master[target as 'tone' | 'reverb' | 'delay'];
+  return target === 'tempo' ? (s.tempo - TEMPO_MIN) / TEMPO_SPAN : readParam(s, target as ParamKey);
 }
 
 function setUnit(s: Settings, target: ControlTarget, v: number): void {
-  if (target.startsWith('vol.')) s.modules[target.slice(4) as ModuleId].volume = v;
-  else if (target === 'master') s.master.volume = v;
-  else if (target === 'tempo') s.tempo = clampTempo(TEMPO_MIN + v * TEMPO_SPAN);
-  else s.master[target as 'tone' | 'reverb' | 'delay'] = v;
+  if (target === 'tempo') s.tempo = clampTempo(TEMPO_MIN + v * TEMPO_SPAN);
+  else writeParam(s, { key: target as ParamKey, value: v });
 }
 
 interface Stepped {

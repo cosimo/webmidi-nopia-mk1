@@ -1,4 +1,5 @@
 import type { Chord } from '../harmony/theory';
+import type { ParamKey } from './params';
 
 /** Events the looper replays carry `at` (AudioContext time they sound) and `source: 'loop'`. */
 type Replayable = { at?: number; source?: 'loop' };
@@ -13,6 +14,7 @@ export type BusEventBody =
   | ({ type: 'mod'; value: number } & Replayable) // CC1, 0..127
   | { type: 'sustain'; on: boolean }
   | { type: 'tick'; tick: number; at: number; dur: number } // grid tick: index from the start, AudioContext time (s), seconds per tick
+  | { type: 'param'; key: ParamKey; value: number } // a recordable setting changed (live or replayed)
   | { type: 'panic' };
 
 export type BusEvent = BusEventBody & { time: number }; // time: performance.now() ms
