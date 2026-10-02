@@ -1,7 +1,7 @@
 import type { NoteSink } from '../modules/module';
 
 export interface MidiOutputLike {
-  send(data: number[]): void;
+  send(data: number[], timestamp?: number): void;
 }
 
 /** Sends a module's notes to one MIDI output port and channel, tracking sounding notes. */
@@ -12,19 +12,21 @@ export class MidiOutSink implements NoteSink {
   constructor(
     private port: MidiOutputLike,
     channel: number, // 1..16
+    private portTime?: (at: number) => number, // AudioContext seconds → port timestamp (ms)
   ) {
     this.ch = channel - 1;
   }
 
-  noteOn(note: number, velocity: number): void {
-    if (this.sounding.has(note)) this.send([0x80 | this.ch, note, 0]);
-    this.send([0x90 | this.ch, note, Math.min(127, Math.max(1, Math.round(velocity)))]);
+  noteOn(note: number, velocity: number, at?: number): void {
+    const t = this.stamp(at);
+    if (this.sounding.has(note)) this.send([0x80 | this.ch, note, 0], t);
+    this.send([0x90 | this.ch, note, Math.min(127, Math.max(1, Math.round(velocity)))], t);
     this.sounding.add(note);
   }
 
-  noteOff(note: number): void {
+  noteOff(note: number, at?: number): void {
     if (!this.sounding.delete(note)) return;
-    this.send([0x80 | this.ch, note, 0]);
+    this.send([0x80 | this.ch, note, 0], this.stamp(at));
   }
 
   pitchBend(bend: number): void {
@@ -42,9 +44,13 @@ export class MidiOutSink implements NoteSink {
     this.send([0xb0 | this.ch, 123, 0]);
   }
 
-  private send(data: number[]): void {
+  private stamp(at?: number): number | undefined {
+    return at === undefined || !this.portTime ? undefined : this.portTime(at);
+  }
+
+  private send(data: number[], timestamp?: number): void {
     try {
-      this.port.send(data);
+      this.port.send(data, timestamp);
     } catch {
       // port vanished mid-send; the next sync removes this sink
     }

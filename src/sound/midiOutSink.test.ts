@@ -54,6 +54,19 @@ describe('MidiOutSink', () => {
     expect(port.sent).toEqual([[0xb4, 1, 99]]);
   });
 
+  it('stamps timed notes with the port time', () => {
+    const sent: [number[], number | undefined][] = [];
+    const sink = new MidiOutSink({ send: (d, t) => void sent.push([d, t]) }, 3, (at) => 1000 + at * 1000);
+    sink.noteOn(60, 100, 2);
+    sink.noteOff(60, 2.5);
+    sink.noteOn(62, 100);
+    expect(sent).toEqual([
+      [[0x92, 60, 100], 3000],
+      [[0x82, 60, 0], 3500],
+      [[0x92, 62, 100], undefined],
+    ]);
+  });
+
   it('survives a port that throws', () => {
     const sink = new MidiOutSink({ send: () => { throw new Error('disconnected'); } }, 1);
     expect(() => {

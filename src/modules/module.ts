@@ -4,8 +4,9 @@ import type { Chord } from '../harmony/theory';
 
 /** Where a module's notes go: the internal synth, a MIDI port, or both (spec §5.1). */
 export interface NoteSink {
-  noteOn(note: number, velocity: number): void; // velocity 1..127
-  noteOff(note: number): void;
+  /** `at`: AudioContext time in seconds when the note sounds; omitted = now. */
+  noteOn(note: number, velocity: number, at?: number): void; // velocity 1..127
+  noteOff(note: number, at?: number): void;
   pitchBend(bend: number): void; // -1..1
   cc(controller: number, value: number): void;
   allNotesOff(): void;

@@ -24,16 +24,16 @@ export class ToneSink implements InternalSink {
     }
   }
 
-  noteOn(note: number, velocity: number): void {
-    const now = Tone.immediate();
-    if (this.sounding.has(note)) this.voice.release(note, now);
-    this.voice.attack(note, velocity / 127, now);
+  noteOn(note: number, velocity: number, at?: number): void {
+    const t = at ?? Tone.immediate();
+    if (this.sounding.has(note)) this.voice.release(note, t);
+    this.voice.attack(note, velocity / 127, t);
     this.sounding.add(note);
   }
 
-  noteOff(note: number): void {
+  noteOff(note: number, at?: number): void {
     if (!this.sounding.delete(note)) return;
-    this.voice.release(note, Tone.immediate());
+    this.voice.release(note, at ?? Tone.immediate());
   }
 
   pitchBend(bend: number): void {

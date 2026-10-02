@@ -9,6 +9,7 @@ import { BassModule } from './modules/bass';
 import { KeysModule } from './modules/keys';
 import { MelodyModule } from './modules/melody';
 import { PadModule } from './modules/pad';
+import { audioToPortTime } from './sound/audioTime';
 import { Master } from './sound/master';
 import { ModuleOutputs } from './sound/moduleOutputs';
 import { createVoice } from './sound/presets';
@@ -39,6 +40,7 @@ const outputs = new ModuleOutputs({
   internal: (id, preset) =>
     new ToneSink(createVoice(preset), id === 'keys' || id === 'pad' ? master.toneInput : master.input, id === 'melody'),
   midiPort: (name) => midi?.output(name) ?? null,
+  portTime: audioToPortTime,
 });
 const modules = [
   new KeysModule(outputs.sink('keys')),

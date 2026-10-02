@@ -11,6 +11,8 @@ export interface SinkFactory {
   internal(id: ModuleId, preset: string): InternalSink;
   /** The connected output with this name, or null when it is not present. */
   midiPort(name: string): MidiOutputLike | null;
+  /** An AudioContext time (s) as a MIDI port timestamp (ms). */
+  portTime(at: number): number;
 }
 
 /** Fans a module's notes out to its current sinks; sinks that are removed get allNotesOff(). */
@@ -22,11 +24,11 @@ export class FanoutSink implements NoteSink {
     this.sinks = next;
   }
 
-  noteOn(note: number, velocity: number): void {
-    for (const s of this.sinks) s.noteOn(note, velocity);
+  noteOn(note: number, velocity: number, at?: number): void {
+    for (const s of this.sinks) s.noteOn(note, velocity, at);
   }
-  noteOff(note: number): void {
-    for (const s of this.sinks) s.noteOff(note);
+  noteOff(note: number, at?: number): void {
+    for (const s of this.sinks) s.noteOff(note, at);
   }
   pitchBend(bend: number): void {
     for (const s of this.sinks) s.pitchBend(bend);
@@ -87,7 +89,9 @@ export class ModuleOutputs {
 
     const midiKey = port ? `${m.port}#${m.channel}` : null;
     if (route.midi?.key !== midiKey) {
-      route.midi = port && midiKey ? { key: midiKey, sink: new MidiOutSink(port, m.channel), volume: -1 } : null;
+      route.midi = port && midiKey
+        ? { key: midiKey, sink: new MidiOutSink(port, m.channel, (at) => this.factory.portTime(at)), volume: -1 }
+        : null;
     }
     if (route.midi && route.midi.volume !== m.volume) {
       route.midi.volume = m.volume;

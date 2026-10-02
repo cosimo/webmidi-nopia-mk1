@@ -3,16 +3,18 @@ import { defaultSettings, type ModuleId, type Settings } from '../core/store';
 import { ModuleOutputs, type InternalSink, type SinkFactory } from './moduleOutputs';
 
 let log: string[];
-let ports: Map<string, { send(d: number[]): void }>;
+let ports: Map<string, { send(d: number[], t?: number): void }>;
 let factory: SinkFactory;
 let settings: Settings;
 let outputs: ModuleOutputs;
 
+const when = (t?: number) => (t === undefined ? '' : ` @${t}`);
+
 function internalSink(id: ModuleId, preset: string): InternalSink {
   const tag = `${id}/${preset}`;
   return {
-    noteOn: (n, v) => void log.push(`${tag} on ${n} ${v}`),
-    noteOff: (n) => void log.push(`${tag} off ${n}`),
+    noteOn: (n, v, at) => void log.push(`${tag} on ${n} ${v}${when(at)}`),
+    noteOff: (n, at) => void log.push(`${tag} off ${n}${when(at)}`),
     pitchBend: () => {},
     cc: () => {},
     allNotesOff: () => void log.push(`${tag} allOff`),
@@ -22,13 +24,13 @@ function internalSink(id: ModuleId, preset: string): InternalSink {
 }
 
 function addPort(name: string) {
-  ports.set(name, { send: (d) => void log.push(`${name} ${d.join(',')}`) });
+  ports.set(name, { send: (d, t) => void log.push(`${name} ${d.join(',')}${when(t)}`) });
 }
 
 beforeEach(() => {
   log = [];
   ports = new Map();
-  factory = { internal: internalSink, midiPort: (name) => ports.get(name) ?? null };
+  factory = { internal: internalSink, midiPort: (name) => ports.get(name) ?? null, portTime: (at) => at * 1000 };
   settings = defaultSettings();
   outputs = new ModuleOutputs(factory);
 });
@@ -110,6 +112,19 @@ describe('ModuleOutputs', () => {
     log = [];
     outputs.sink('melody').noteOn(74, 100);
     expect(log).toEqual(['Bome 148,74,100']);
+  });
+
+  it('passes note times to every sink, as port time for MIDI', () => {
+    addPort('Bome');
+    settings.modules.keys.port = 'Bome';
+    outputs.sync(settings);
+    log = [];
+    outputs.sink('keys').noteOn(60, 100, 2);
+    outputs.sink('keys').noteOff(60, 2.25);
+    expect(log).toEqual([
+      'keys/epiano on 60 100 @2', 'Bome 144,60,100 @2000',
+      'keys/epiano off 60 @2.25', 'Bome 128,60,0 @2250',
+    ]);
   });
 
   it('changes MIDI channel by replacing the sink (old notes stopped)', () => {
