@@ -203,3 +203,7 @@ button.active { background: var(--accent); }
 
 .learning [data-learn] { outline: 2px dashed var(--accent); outline-offset: 2px; cursor: crosshair; }
 [data-learn].armed, button.armed { outline: 3px solid var(--accent); outline-offset: 2px; }
+.rhythm { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
+.rhythm .bpm input { width: 64px; }
+.rhythm-buttons { display: flex; gap: 6px; }
+.arp-settings { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--panel-shade); }

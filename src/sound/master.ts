@@ -7,6 +7,8 @@ export class Master {
   readonly input = new Tone.Gain(1);
   /** For Keys and Pad: through the Tone low-pass first. */
   readonly toneInput = new Tone.Filter(8000, 'lowpass');
+  /** For the metronome: no Tone filter, no reverb or delay. */
+  readonly clickInput = new Tone.Gain(1);
   private reverbSend = new Tone.Gain(0);
   private delaySend = new Tone.Gain(0);
   private out = new Tone.Gain(0);
@@ -16,6 +18,7 @@ export class Master {
     limiter.chain(this.out, Tone.getDestination());
     this.toneInput.connect(this.input);
     this.input.connect(limiter);
+    this.clickInput.connect(limiter);
     const reverb = new Tone.Reverb({ decay: 3.5, preDelay: 0.02, wet: 1 }).connect(limiter);
     const delay = new Tone.FeedbackDelay({ delayTime: 0.375, feedback: 0.35, wet: 1 }).connect(limiter);
     this.input.connect(this.reverbSend);

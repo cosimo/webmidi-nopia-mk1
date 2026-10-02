@@ -5,11 +5,14 @@ import { createKnob } from './knob';
 const NAMES: Record<ModuleId, string> = { keys: 'Keys', pad: 'Pad', bass: 'Bass', melody: 'Melody', arp: 'Arp', strum: 'Strum' };
 const CHANNELS = Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `ch ${i + 1}` }));
 
+type Extra = { el: HTMLElement; render(s: Settings): void };
+
 /** A volume knob per module; the module name opens its settings. */
 export function createModuleStrip(deps: {
   store: Store;
   outputNames: () => string[];
   portMissing: (id: ModuleId) => boolean;
+  extras?: Partial<Record<ModuleId, Extra>>;
 }) {
   const { store } = deps;
   const set = (id: ModuleId, patch: Partial<ModuleSettings>) =>
@@ -23,6 +26,7 @@ export function createModuleStrip(deps: {
     const port = createSelect({ 'data-testid': `${id}-port` }, (v) => set(id, { port: v === '' ? null : v }));
     const channel = createSelect({ 'data-testid': `${id}-channel` }, (v) => set(id, { channel: Number(v) }));
     const badge = h('span', { class: 'badge', title: 'MIDI port missing — using internal sound', hidden: true }, '⚠');
+    const extra = deps.extras?.[id];
     const details = h(
       'details',
       { class: 'module-settings' },
@@ -32,6 +36,7 @@ export function createModuleStrip(deps: {
       h('label', {}, 'preset ', preset.el),
       h('label', {}, 'MIDI out ', port.el),
       h('label', {}, 'channel ', channel.el),
+      ...(extra ? [extra.el] : []),
     );
     const el = h('div', { class: 'module', 'data-testid': `module-${id}` }, knob.el, details);
     return { id, el, knob, enabled, sound, preset, port, channel, badge };
@@ -55,6 +60,7 @@ export function createModuleStrip(deps: {
         );
         it.channel.setOptions(CHANNELS, String(m.channel));
         it.badge.hidden = !deps.portMissing(it.id);
+        deps.extras?.[it.id]?.render(s);
       }
     },
   };

@@ -4,12 +4,14 @@ import type { ExtLevel } from '../harmony/theory';
 import type { ControlMap } from '../input/controlMap';
 import type { InputRouter } from '../input/inputRouter';
 import type { MidiPorts } from '../input/midiAccess';
+import { createArpSettings } from './arpSettings';
 import { createSelect, h } from './dom';
 import { createKeyboardView } from './keyboardView';
 import { createKnob } from './knob';
 import { createMidiMonitor } from './midiMonitor';
 import { createModuleStrip } from './moduleStrip';
 import { createOled } from './oled';
+import { createRhythm } from './rhythm';
 import { createSettings } from './settings';
 import { createTonalSelector } from './tonalSelector';
 
@@ -70,15 +72,17 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
   const oled = createOled();
   const tonal = createTonalSelector(store);
   const keyboard = createKeyboardView(router);
+  const rhythm = createRhythm(store);
   const strip = createModuleStrip({
     store,
     outputNames: () => deps.ports()?.outputNames() ?? [],
     portMissing: deps.portMissing,
+    extras: { arp: createArpSettings(store) },
   });
   const panel = h(
     'main',
     { class: 'panel' },
-    h('div', { class: 'controls' }, layoutButton, tonalityButton, tableButton, extKnob.el),
+    h('div', { class: 'controls' }, layoutButton, tonalityButton, tableButton, extKnob.el, rhythm.el),
     oled.el,
     tonal.el,
     keyboard.el,
@@ -134,6 +138,7 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
     if (levelOf(extKnob.value()) !== s.extLevel) extKnob.set((s.extLevel + 0.5) / 4);
     oled.showStatus(s);
     tonal.render(s);
+    rhythm.render(s);
     keyboard.render(s);
     strip.render(s);
     settings.render(s);

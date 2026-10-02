@@ -1,19 +1,24 @@
 import * as Tone from 'tone';
 import { Bus } from './core/bus';
+import { PPQ, TICKS_PER_BAR } from './core/clock';
 import { MODULE_IDS, Store } from './core/store';
 import { ChordEngine } from './harmony/chordEngine';
 import { ControlMap } from './input/controlMap';
 import { InputRouter } from './input/inputRouter';
 import { pickInput, requestMidi, type MidiPorts } from './input/midiAccess';
+import { ArpModule } from './modules/arp';
 import { BassModule } from './modules/bass';
 import { KeysModule } from './modules/keys';
 import { MelodyModule } from './modules/melody';
+import type { Module } from './modules/module';
 import { PadModule } from './modules/pad';
 import { audioToPortTime } from './sound/audioTime';
 import { Master } from './sound/master';
+import { Metronome } from './sound/metronome';
 import { ModuleOutputs } from './sound/moduleOutputs';
 import { createVoice } from './sound/presets';
 import { ToneSink } from './sound/toneSink';
+import { createTransport } from './sound/transport';
 import { mountPanel } from './ui/panel';
 import './ui/style.css';
 
@@ -42,14 +47,22 @@ const outputs = new ModuleOutputs({
   midiPort: (name) => midi?.output(name) ?? null,
   portTime: audioToPortTime,
 });
-const modules = [
+const modules: Module[] = [
   new KeysModule(outputs.sink('keys')),
   new PadModule(outputs.sink('pad')),
   new BassModule(outputs.sink('bass')),
   new MelodyModule(outputs.sink('melody'), () => store.get().modStrip),
+  new ArpModule(outputs.sink('arp'), () => store.get().arp),
 ];
 bus.subscribe((e) => {
   for (const m of modules) m.handle(e);
+});
+
+const metronome = new Metronome(master.clickInput);
+const transport = createTransport((tick, at, dur) => bus.emit({ type: 'tick', tick, at, dur }));
+transport.setTempo(store.get().tempo);
+bus.subscribe((e) => {
+  if (e.type === 'tick' && e.tick % PPQ === 0 && store.get().metronome) metronome.click(e.at, e.tick % TICKS_PER_BAR === 0);
 });
 
 function panic(): void {
@@ -66,6 +79,7 @@ store.subscribe((next, prev) => {
   if (HARMONY_KEYS.some((k) => next[k] !== prev[k])) engine.settingsChanged();
   outputs.sync(next);
   master.apply(next.master);
+  if (next.tempo !== prev.tempo) transport.setTempo(next.tempo);
 });
 outputs.sync(store.get());
 master.apply(store.get().master);
@@ -82,8 +96,13 @@ const ui = mountPanel(document.querySelector<HTMLElement>('#app')!, {
 });
 
 const context = Tone.getContext();
-ui.setAudioRunning(context.state === 'running');
-context.on('statechange', () => ui.setAudioRunning(context.state === 'running'));
+const onAudioState = () => {
+  const running = context.state === 'running';
+  ui.setAudioRunning(running);
+  if (running) transport.start();
+};
+onAudioState();
+context.on('statechange', onAudioState);
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) panic();
