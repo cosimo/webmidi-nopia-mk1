@@ -342,7 +342,11 @@ export class Looper {
   // --- slots ---------------------------------------------------------------------------------
 
   private armRecording(id: SlotId): void {
-    if (this.rec) this.slots[this.rec.slot] = emptySlot(); // one recording at a time
+    if (this.rec?.started) {
+      this.stopRecording(); // finish the take in progress; Rec again records this slot
+      return;
+    }
+    if (this.rec) this.slots[this.rec.slot] = emptySlot(); // a recording not yet begun moves here
     this.rec = { slot: id, start: nextBar(this.pos()), end: null, started: false };
     this.slots[id].state = 'recording';
   }

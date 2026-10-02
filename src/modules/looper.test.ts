@@ -202,6 +202,22 @@ describe('Looper: recording and playback', () => {
     expect(take().filter((l) => l.startsWith('mod'))).toHaveLength(4);
   });
 
+  it('Rec on another slot while recording finishes the take instead of discarding it', () => {
+    runTo(1);
+    looper.record(); // verse, from 48
+    runTo(50);
+    at(50);
+    send({ type: 'chordOn', chord: chord(0), velocity: 90 });
+    runTo(60);
+    at(60);
+    send({ type: 'chordOff' });
+    looper.select('chorus');
+    looper.record(); // finishes the verse at the end of its bar; Rec again records the chorus
+    expect(slot('chorus').state).toBe('empty');
+    runTo(96);
+    expect(slot('verse')).toEqual({ id: 'verse', state: 'playing', bars: 1, waiting: false });
+  });
+
   it('pressing Rec again before the bar cancels the recording', () => {
     runTo(1);
     looper.record();
