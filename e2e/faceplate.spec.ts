@@ -63,6 +63,28 @@ test.describe('the Nopia faceplate', () => {
     await expect(page.getByTestId('table')).toHaveClass(/active/);
   });
 
+  test('Key latches: the next chord key sets the tonic', async ({ page }) => {
+    const key = page.getByTestId('key-button');
+    await key.click();
+    await expect(key).toHaveClass(/lit/);
+    await page.getByTestId('key-55').dispatchEvent('pointerdown', { pointerId: 1 }); // G
+    await page.getByTestId('key-55').dispatchEvent('pointerup', { pointerId: 1 });
+    await expect(page.getByTestId('oled-status')).toContainText('G major');
+    await expect(key).not.toHaveClass(/lit/);
+    await page.getByTestId('key-50').dispatchEvent('pointerdown', { pointerId: 1 }); // unlatched: plays again
+    await expect(page.getByTestId('oled-chord')).toHaveText('D'); // V of G
+  });
+
+  test('pressing Key again cancels it', async ({ page }) => {
+    const key = page.getByTestId('key-button');
+    await key.click();
+    await key.click();
+    await expect(key).not.toHaveClass(/lit/);
+    await page.getByTestId('key-55').dispatchEvent('pointerdown', { pointerId: 1 });
+    await expect(page.getByTestId('oled-chord')).toHaveText('G');
+    await expect(page.getByTestId('oled-status')).toContainText('C major');
+  });
+
   test('the Strum · Vib switch sends the mod strip to the Melody\'s vibrato', async ({ page }) => {
     await page.getByTestId('melody-open').click();
     await page.getByTestId('melody-port').selectOption(SYNTH);

@@ -33,6 +33,7 @@ export interface FaceplateParts {
   delay: HTMLElement;
   display: HTMLElement;
   chordKeys: HTMLElement;
+  keyButton: HTMLElement;
   tonics: HTMLElement[]; // by pitch class
 }
 
@@ -75,6 +76,7 @@ export function createFaceplate(p: FaceplateParts): HTMLElement {
     place(p.tone, 4.1, 62, 2.8), label('Tone', 4.1, 67.2),
     place(p.delay, 4.1, 76, 2.8), label('Delay', 4.1, 81.2),
     box(p.chordKeys, 10.4, 53.4, 39.6, 38.6),
+    place(p.keyButton, 53.6, 84.7, 3.7, 2.7), label('Key', 53.6, 89.2),
   );
   p.tonics.forEach((b, pc) => plate.append(place(b, TONIC_X[pc], BLACK.has(pc) ? 75.5 : 83, 3.55)));
   return plate;

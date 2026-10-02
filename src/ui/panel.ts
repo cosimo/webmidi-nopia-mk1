@@ -110,6 +110,26 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
   const rhythm = createRhythm(store);
   const looper = createLooperControls(deps.looper);
   const panic = frost('square', { class: 'panic', title: 'Panic', 'data-testid': 'panic', 'data-learn': 'panic', onclick: () => deps.panic() });
+  // Key, like holding the key-select note: latched, the next chord key sets the tonic (spec §4.2)
+  let keyHeld: number | null = null; // the key-select note the latched button holds
+  const keyButton = frost('rect', {
+    title: 'Key: then press a chord key to change the tonic',
+    'data-testid': 'key-button',
+    onclick: () => latchKey(keyHeld === null),
+  });
+  function latchKey(on: boolean) {
+    if (on) {
+      keyHeld = store.get().keySelectNote;
+      router.noteOn(keyHeld, 100);
+    } else if (keyHeld !== null) {
+      router.noteOff(keyHeld);
+      keyHeld = null;
+    }
+    keyButton.classList.toggle('lit', keyHeld !== null);
+  }
+  router.onNote((note, on) => {
+    if (on && keyHeld !== null && note !== keyHeld && note < store.get().splitPoint) latchKey(false); // the tonic is set
+  });
   const modules = createModules({
     store,
     outputNames: () => deps.ports()?.outputNames() ?? [],
@@ -139,6 +159,7 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
     delay: fx.delay.knob.el,
     display: oled.el,
     chordKeys: chordKeys.el,
+    keyButton,
     tonics: tonal.buttons,
   });
   const overlay = h(
@@ -209,6 +230,7 @@ export function mountPanel(root: HTMLElement, deps: PanelDeps) {
   bus.subscribe((e) => {
     if (e.type === 'chordOn' || e.type === 'chordChange') oled.showChord(e.chord);
     if (e.type === 'chordOff' || e.type === 'panic') oled.showChord(null);
+    if (e.type === 'panic') latchKey(false);
   });
 
   const bannerEls = new Map<BannerKind, HTMLElement>();
