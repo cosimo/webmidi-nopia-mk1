@@ -129,6 +129,52 @@ describe('targets', () => {
     expect(panics).toBe(1);
   });
 
+  it('maps Tempo onto 40–240 BPM in absolute mode and 1 BPM per relative tick', () => {
+    map.arm('tempo');
+    map.handleCC(1, 40, 0); // learn
+    map.setMode('tempo', 'absolute');
+    map.handleCC(1, 40, 127);
+    expect(store.get().tempo).toBe(240);
+    map.handleCC(1, 40, 0);
+    expect(store.get().tempo).toBe(40);
+    map.setMode('tempo', 'relative');
+    map.handleCC(1, 40, 3); // +3
+    expect(store.get().tempo).toBe(43);
+    map.handleCC(1, 40, 127); // −1
+    expect(store.get().tempo).toBe(42);
+  });
+
+  it('steps the Arp rate from 1/4 to 1/16T over 5 absolute ranges', () => {
+    map.arm('arpRate');
+    map.handleCC(1, 41, 0);
+    map.setMode('arpRate', 'absolute');
+    const rates = [0, 25, 26, 51, 52, 76, 77, 102, 103, 127].map((v) => {
+      map.handleCC(1, 41, v);
+      return store.get().arp.rate;
+    });
+    expect(rates).toEqual(['1/4', '1/4', '1/8', '1/8', '1/8T', '1/8T', '1/16', '1/16', '1/16T', '1/16T']);
+  });
+
+  it('counts relative ticks separately for each stepped target', () => {
+    map.arm('arpRate');
+    map.handleCC(1, 41, 0);
+    map.setMode('arpRate', 'relative');
+    map.setMode('extensions', 'relative');
+    for (let i = 0; i < TICKS_PER_STEP - 1; i++) map.handleCC(1, 14, 1); // Extensions: one tick short
+    map.handleCC(1, 41, 1); // a single Arp-rate tick must not complete Extensions' step
+    expect([store.get().extLevel, store.get().arp.rate]).toEqual([0, '1/8']);
+    for (let i = 0; i < TICKS_PER_STEP - 1; i++) map.handleCC(1, 41, 1);
+    expect(store.get().arp.rate).toBe('1/8T');
+  });
+
+  it('controls the Arp and Strum volumes', () => {
+    map.arm('vol.strum');
+    map.handleCC(1, 42, 0);
+    map.setMode('vol.strum', 'absolute');
+    map.handleCC(1, 42, 127);
+    expect(store.get().modules.strum.volume).toBe(1);
+  });
+
   it('unbinds a target', () => {
     map.unbind('reverb');
     expect(map.handleCC(1, 20, 64)).toBe(false);

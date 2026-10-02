@@ -48,12 +48,14 @@ export type ControlTarget =
   | 'reverb'
   | 'delay'
   | 'master'
+  | 'tempo'
+  | 'arpRate'
   | 'panic';
 
 export const CONTROL_TARGETS: ControlTarget[] = [
   'extensions', 'layout', 'tonality', 'table',
   'vol.keys', 'vol.pad', 'vol.bass', 'vol.melody', 'vol.arp', 'vol.strum',
-  'tone', 'reverb', 'delay', 'master', 'panic',
+  'tone', 'reverb', 'delay', 'master', 'tempo', 'arpRate', 'panic',
 ];
 
 export type EncoderMode = 'detect' | 'absolute' | 'relative';

@@ -1,5 +1,14 @@
+import { clampTempo, TEMPO_MAX, TEMPO_MIN } from '../core/clock';
+import {
+  ARP_RATES,
+  type Binding,
+  type ControlTarget,
+  type EncoderMode,
+  type ModuleId,
+  type Settings,
+  type Store,
+} from '../core/store';
 import type { ExtLevel } from '../harmony/theory';
-import type { Binding, ControlTarget, EncoderMode, ModuleId, Settings, Store } from '../core/store';
 
 type TargetKind = 'continuous' | 'stepped' | 'toggle' | 'trigger';
 
@@ -18,29 +27,52 @@ export const TARGET_INFO: Record<ControlTarget, { label: string; kind: TargetKin
   reverb: { label: 'Reverb send', kind: 'continuous' },
   delay: { label: 'Delay send', kind: 'continuous' },
   master: { label: 'Master volume', kind: 'continuous' },
+  tempo: { label: 'Tempo', kind: 'continuous' },
+  arpRate: { label: 'Arp rate', kind: 'stepped' },
   panic: { label: 'Panic', kind: 'trigger' },
 };
 
 /** Values received before a 'detect' binding is declared relative. */
 export const DETECT_SAMPLES = 8;
-/** Relative-encoder ticks per extension level. */
+/** Relative-encoder ticks per step of a stepped target (Extensions, Arp rate). */
 export const TICKS_PER_STEP = 8;
+
+const TEMPO_SPAN = TEMPO_MAX - TEMPO_MIN;
 
 const inRelativeRange = (v: number) => (v >= 1 && v <= 10) || (v >= 118 && v <= 127);
 const relativeDelta = (v: number) => (v < 64 ? v : v - 128);
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+/** How far one relative-encoder tick moves a continuous target, on its 0..1 scale: Tempo moves 1 BPM. */
+const relativeStep = (target: ControlTarget) => (target === 'tempo' ? 1 / TEMPO_SPAN : 1 / 127);
 
 function getUnit(s: Settings, target: ControlTarget): number {
   if (target.startsWith('vol.')) return s.modules[target.slice(4) as ModuleId].volume;
   if (target === 'master') return s.master.volume;
+  if (target === 'tempo') return (s.tempo - TEMPO_MIN) / TEMPO_SPAN;
   return s.master[target as 'tone' | 'reverb' | 'delay'];
 }
 
 function setUnit(s: Settings, target: ControlTarget, v: number): void {
   if (target.startsWith('vol.')) s.modules[target.slice(4) as ModuleId].volume = v;
   else if (target === 'master') s.master.volume = v;
+  else if (target === 'tempo') s.tempo = clampTempo(TEMPO_MIN + v * TEMPO_SPAN);
   else s.master[target as 'tone' | 'reverb' | 'delay'] = v;
 }
+
+interface Stepped {
+  count: number;
+  get(s: Settings): number;
+  set(s: Settings, step: number): void;
+}
+
+const STEPPED: Partial<Record<ControlTarget, Stepped>> = {
+  extensions: { count: 4, get: (s) => s.extLevel, set: (s, i) => (s.extLevel = i as ExtLevel) },
+  arpRate: {
+    count: ARP_RATES.length,
+    get: (s) => ARP_RATES.indexOf(s.arp.rate),
+    set: (s, i) => (s.arp.rate = ARP_RATES[i]),
+  },
+};
 
 function toggle(s: Settings, target: ControlTarget): void {
   if (target === 'layout') s.layout = s.layout === 'real' ? 'static' : 'real';
@@ -54,7 +86,7 @@ const key = (channel: number, cc: number) => `${channel}:${cc}`;
 export class ControlMap {
   private armed: ControlTarget | null = null;
   private samples = new Map<string, number>();
-  private stepTicks = 0;
+  private stepTicks = new Map<ControlTarget, number>();
   private listeners: (() => void)[] = [];
 
   constructor(
@@ -108,22 +140,25 @@ export class ControlMap {
   }
 
   private apply(binding: Binding, value: number): void {
-    const { kind } = TARGET_INFO[binding.target];
+    const { target } = binding;
+    const { kind } = TARGET_INFO[target];
     if (kind === 'trigger') {
       if (value > 63) this.actions.panic();
       return;
     }
     if (kind === 'toggle') {
-      if (value > 63) this.store.update((s) => toggle(s, binding.target));
+      if (value > 63) this.store.update((s) => toggle(s, target));
       return;
     }
     const mode = binding.mode === 'detect' ? this.detect(binding, value) : binding.mode;
     if (kind === 'stepped') {
-      this.applyExtensions(mode, value);
+      this.applyStepped(target, mode, value);
       return;
     }
-    const v = mode === 'absolute' ? value / 127 : clamp01(getUnit(this.store.get(), binding.target) + relativeDelta(value) / 127);
-    this.store.update((s) => setUnit(s, binding.target, v));
+    const v = mode === 'absolute'
+      ? value / 127
+      : clamp01(getUnit(this.store.get(), target) + relativeDelta(value) * relativeStep(target));
+    this.store.update((s) => setUnit(s, target, v));
   }
 
   /** Decide a 'detect' binding's mode; values that could be relative are applied as relative meanwhile. */
@@ -139,20 +174,22 @@ export class ControlMap {
     return 'relative';
   }
 
-  private applyExtensions(mode: 'absolute' | 'relative', value: number): void {
-    const current = this.store.get().extLevel;
-    let level: number = current;
+  private applyStepped(target: ControlTarget, mode: 'absolute' | 'relative', value: number): void {
+    const { count, get, set } = STEPPED[target]!;
+    const current = get(this.store.get());
+    let step = current;
     if (mode === 'absolute') {
-      level = Math.min(3, Math.floor((value * 4) / 128));
+      step = Math.min(count - 1, Math.floor((value * count) / 128));
     } else {
-      this.stepTicks += relativeDelta(value);
-      while (this.stepTicks >= TICKS_PER_STEP) { level++; this.stepTicks -= TICKS_PER_STEP; }
-      while (this.stepTicks <= -TICKS_PER_STEP) { level--; this.stepTicks += TICKS_PER_STEP; }
-      level = Math.min(3, Math.max(0, level));
+      let ticks = (this.stepTicks.get(target) ?? 0) + relativeDelta(value);
+      while (ticks >= TICKS_PER_STEP) { step++; ticks -= TICKS_PER_STEP; }
+      while (ticks <= -TICKS_PER_STEP) { step--; ticks += TICKS_PER_STEP; }
+      step = Math.min(count - 1, Math.max(0, step));
       // at an end stop, ticks pushing further are dropped so the first turn back steps at once
-      if ((level === 3 && this.stepTicks > 0) || (level === 0 && this.stepTicks < 0)) this.stepTicks = 0;
+      if ((step === count - 1 && ticks > 0) || (step === 0 && ticks < 0)) ticks = 0;
+      this.stepTicks.set(target, ticks);
     }
-    if (level !== current) this.store.update((s) => (s.extLevel = level as ExtLevel));
+    if (step !== current) this.store.update((s) => set(s, step));
   }
 
   private notify(): void {
