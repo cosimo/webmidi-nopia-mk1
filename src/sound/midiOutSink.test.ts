@@ -67,6 +67,20 @@ describe('MidiOutSink', () => {
     ]);
   });
 
+  it('allNotesOff ends a note stamped for later just after it starts, not before', () => {
+    const sent: [number[], number | undefined][] = [];
+    const sink = new MidiOutSink({ send: (d, t) => void sent.push([d, t]) }, 1, (at) => at * 1000);
+    sink.noteOn(60, 100); // now
+    sink.noteOn(64, 100, 5); // queued in the port for 5000 ms
+    sent.length = 0;
+    sink.allNotesOff();
+    expect(sent).toEqual([
+      [[0x80, 60, 0], undefined],
+      [[0x80, 64, 0], 5001],
+      [[0xb0, 123, 0], 5001],
+    ]);
+  });
+
   it('survives a port that throws', () => {
     const sink = new MidiOutSink({ send: () => { throw new Error('disconnected'); } }, 1);
     expect(() => {

@@ -6,7 +6,7 @@ export interface MidiOutputLike {
 
 /** Sends a module's notes to one MIDI output port and channel, tracking sounding notes. */
 export class MidiOutSink implements NoteSink {
-  private sounding = new Set<number>();
+  private sounding = new Map<number, number | undefined>(); // note → its note-on's port timestamp
   private ch: number;
 
   constructor(
@@ -21,7 +21,7 @@ export class MidiOutSink implements NoteSink {
     const t = this.stamp(at);
     if (this.sounding.has(note)) this.send([0x80 | this.ch, note, 0], t);
     this.send([0x90 | this.ch, note, Math.min(127, Math.max(1, Math.round(velocity)))], t);
-    this.sounding.add(note);
+    this.sounding.set(note, t);
   }
 
   noteOff(note: number, at?: number): void {
@@ -39,9 +39,15 @@ export class MidiOutSink implements NoteSink {
   }
 
   allNotesOff(): void {
-    for (const note of this.sounding) this.send([0x80 | this.ch, note, 0]);
+    // a note-on queued for later would arrive after an immediate note-off: end it just after it starts
+    let last: number | undefined;
+    for (const [note, t] of this.sounding) {
+      const off = t === undefined ? undefined : t + 1;
+      this.send([0x80 | this.ch, note, 0], off);
+      if (off !== undefined && (last === undefined || off > last)) last = off;
+    }
     this.sounding.clear();
-    this.send([0xb0 | this.ch, 123, 0]);
+    this.send([0xb0 | this.ch, 123, 0], last);
   }
 
   private stamp(at?: number): number | undefined {
