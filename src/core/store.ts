@@ -50,12 +50,19 @@ export type ControlTarget =
   | 'master'
   | 'tempo'
   | 'arpRate'
+  | 'loopRec'
+  | 'loopPlay'
+  | 'loopClear'
+  | 'slotVerse'
+  | 'slotChorus'
+  | 'slotBridge'
   | 'panic';
 
 export const CONTROL_TARGETS: ControlTarget[] = [
   'extensions', 'layout', 'tonality', 'table',
   'vol.keys', 'vol.pad', 'vol.bass', 'vol.melody', 'vol.arp', 'vol.strum',
-  'tone', 'reverb', 'delay', 'master', 'tempo', 'arpRate', 'panic',
+  'tone', 'reverb', 'delay', 'master', 'tempo', 'arpRate',
+  'loopRec', 'loopPlay', 'loopClear', 'slotVerse', 'slotChorus', 'slotBridge', 'panic',
 ];
 
 export type EncoderMode = 'detect' | 'absolute' | 'relative';

@@ -3,13 +3,13 @@ import { Store } from '../core/store';
 import { ControlMap, DETECT_SAMPLES, TICKS_PER_STEP } from './controlMap';
 
 let store: Store;
-let panics: number;
+let triggered: string[];
 let map: ControlMap;
 
 beforeEach(() => {
   store = new Store(null);
-  panics = 0;
-  map = new ControlMap(store, { panic: () => panics++ });
+  triggered = [];
+  map = new ControlMap(store, { trigger: (t) => void triggered.push(t) });
 });
 
 const binding = (target: string) => store.get().bindings.find((b) => b.target === target);
@@ -126,7 +126,16 @@ describe('targets', () => {
     map.handleCC(1, 33, 127);
     map.handleCC(1, 33, 127);
     map.handleCC(1, 33, 0);
-    expect(panics).toBe(1);
+    expect(triggered).toEqual(['panic']);
+  });
+
+  it('fires the looper buttons on press', () => {
+    for (const [cc, target] of [[34, 'loopRec'], [35, 'slotChorus']] as const) {
+      map.arm(target);
+      map.handleCC(1, cc, 0);
+      map.handleCC(1, cc, 127);
+    }
+    expect(triggered).toEqual(['loopRec', 'slotChorus']);
   });
 
   it('maps Tempo onto 40–240 BPM in absolute mode and 1 BPM per relative tick', () => {

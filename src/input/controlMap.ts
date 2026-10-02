@@ -29,6 +29,12 @@ export const TARGET_INFO: Record<ControlTarget, { label: string; kind: TargetKin
   master: { label: 'Master volume', kind: 'continuous' },
   tempo: { label: 'Tempo', kind: 'continuous' },
   arpRate: { label: 'Arp rate', kind: 'stepped' },
+  loopRec: { label: 'Looper record', kind: 'trigger' },
+  loopPlay: { label: 'Looper play/stop', kind: 'trigger' },
+  loopClear: { label: 'Looper clear', kind: 'trigger' },
+  slotVerse: { label: 'Verse slot', kind: 'trigger' },
+  slotChorus: { label: 'Chorus slot', kind: 'trigger' },
+  slotBridge: { label: 'Bridge slot', kind: 'trigger' },
   panic: { label: 'Panic', kind: 'trigger' },
 };
 
@@ -86,7 +92,7 @@ export class ControlMap {
 
   constructor(
     private store: Store,
-    private actions: { panic(): void },
+    private actions: { trigger(target: ControlTarget): void }, // buttons: panic, looper
   ) {}
 
   /** Arm a target for learning; the next CC received binds to it. null disarms. */
@@ -138,7 +144,7 @@ export class ControlMap {
     const { target } = binding;
     const { kind } = TARGET_INFO[target];
     if (kind === 'trigger') {
-      if (value > 63) this.actions.panic();
+      if (value > 63) this.actions.trigger(target);
       return;
     }
     if (kind === 'toggle') {

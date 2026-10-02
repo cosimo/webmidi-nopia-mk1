@@ -79,7 +79,7 @@ function panic(): void {
   router.reset();
 }
 
-const controls = new ControlMap(store, { panic });
+const controls = new ControlMap(store, { trigger: (t) => t === 'panic' && panic() });
 const router = new InputRouter({ engine, bus, store, controls });
 
 const HARMONY_KEYS = ['tonic', 'tonality', 'layout', 'table', 'extLevel'] as const;
