@@ -57,6 +57,13 @@ describe('KeysModule', () => {
     expect(sink.take()).toEqual(['on 53 90', 'on 57 90', 'on 60 90']); // first-chord placement
   });
 
+  it('plays replayed chords at their time', () => {
+    const keys = new KeysModule(sink);
+    send(keys, { type: 'chordOn', chord: chord(0), velocity: 90, at: 2, source: 'loop' });
+    send(keys, { type: 'chordOff', at: 3, source: 'loop' });
+    expect(sink.take()).toEqual(['on 60 90 @2', 'on 64 90 @2', 'on 67 90 @2', 'off 60 @3', 'off 64 @3', 'off 67 @3']);
+  });
+
   it('ignores melody events', () => {
     const keys = new KeysModule(sink);
     send(keys, { type: 'melodyOn', note: 72, velocity: 90 });
@@ -96,6 +103,13 @@ describe('MelodyModule', () => {
     send(mel, { type: 'melodyOn', note: 72, velocity: 80 });
     send(mel, { type: 'melodyOff', note: 72 });
     expect(sink.take()).toEqual(['on 72 80', 'off 72']);
+  });
+
+  it('plays replayed notes at their time', () => {
+    const mel = new MelodyModule(sink, () => 'vibrato');
+    send(mel, { type: 'melodyOn', note: 72, velocity: 80, at: 1.5, source: 'loop' });
+    send(mel, { type: 'melodyOff', note: 72, at: 2, source: 'loop' });
+    expect(sink.take()).toEqual(['on 72 80 @1.5', 'off 72 @2']);
   });
 
   it('forwards pitch bend and CC1', () => {

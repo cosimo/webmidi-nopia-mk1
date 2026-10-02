@@ -31,9 +31,9 @@ export abstract class ChordModule implements Module {
   protected abstract resetVoicing(): void;
 
   handle(e: BusEvent): void {
-    if (e.type === 'chordOn') this.play(this.voice(e.chord), e.velocity, true);
-    else if (e.type === 'chordChange') this.play(this.voice(e.chord), e.velocity, e.retrigger);
-    else if (e.type === 'chordOff') this.play([], 0, true);
+    if (e.type === 'chordOn') this.play(this.voice(e.chord), e.velocity, true, e.at);
+    else if (e.type === 'chordChange') this.play(this.voice(e.chord), e.velocity, e.retrigger, e.at);
+    else if (e.type === 'chordOff') this.play([], 0, true, e.at);
     else if (e.type === 'panic') this.allNotesOff();
   }
 
@@ -43,12 +43,12 @@ export abstract class ChordModule implements Module {
     this.resetVoicing();
   }
 
-  /** Retrigger restarts every note; otherwise common notes sustain. */
-  private play(next: number[], velocity: number, retrigger: boolean): void {
+  /** Retrigger restarts every note; otherwise common notes sustain. `at`: when (omitted = now). */
+  private play(next: number[], velocity: number, retrigger: boolean, at?: number): void {
     const stop = retrigger ? this.notes : this.notes.filter((n) => !next.includes(n));
     const start = retrigger ? next : next.filter((n) => !this.notes.includes(n));
-    for (const n of stop) this.out.noteOff(n);
-    for (const n of start) this.out.noteOn(n, velocity);
+    for (const n of stop) this.out.noteOff(n, at);
+    for (const n of start) this.out.noteOn(n, velocity, at);
     this.notes = next;
   }
 }

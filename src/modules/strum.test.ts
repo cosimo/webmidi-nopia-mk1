@@ -83,6 +83,14 @@ describe('StrumModule', () => {
     expect(sink.take()).toEqual(['off 64', 'off 60']);
   });
 
+  it('keeps live and replayed strip positions apart, plucking replayed zones at their time', () => {
+    send({ type: 'chordOn', chord: chord(0), velocity: 100 });
+    mod(0); // live: zone 0
+    send({ type: 'mod', value: 127, at: 2, source: 'loop' }); // the loop's first value: only its own zone
+    mod(20); // live again: from zone 0 to zone 1, not from the loop's zone 6
+    expect(sink.take()).toEqual(['on 60 100', 'on 84 100 @2', 'on 64 100']);
+  });
+
   it('panic silences it and cancels the pending note-offs', () => {
     send({ type: 'chordOn', chord: chord(0), velocity: 100 });
     mod(0);

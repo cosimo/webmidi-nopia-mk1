@@ -18,11 +18,11 @@ export class MelodyModule implements Module {
     switch (e.type) {
       case 'melodyOn':
         this.sustained.delete(e.note);
-        this.out.noteOn(e.note, e.velocity);
+        this.out.noteOn(e.note, e.velocity, e.at);
         break;
       case 'melodyOff':
         if (this.sustainOn) this.sustained.add(e.note);
-        else this.out.noteOff(e.note);
+        else this.out.noteOff(e.note, e.at);
         break;
       case 'sustain':
         this.sustainOn = e.on;

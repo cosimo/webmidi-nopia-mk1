@@ -30,7 +30,7 @@ export class StrumModule implements Module {
   readonly id = 'strum' as const;
   private voicer = new Voicer(); // follows the same chords as Keys, so it voices identically
   private chord: { notes: number[]; velocity: number } | null = null;
-  private lastValue: number | null = null; // the strip position, kept across chords
+  private lastValue: Record<'live' | 'loop', number | null> = { live: null, loop: null }; // strip positions, kept across chords
   private ringing = new Map<number, number>(); // note → token of the timer that ends it
   private nextToken = 0;
 
@@ -52,7 +52,7 @@ export class StrumModule implements Module {
         this.chord = null;
         break;
       case 'mod':
-        this.strum(e.value);
+        this.strum(e.value, e.source ?? 'live', e.at);
         break;
       case 'panic':
         this.allNotesOff();
@@ -67,20 +67,20 @@ export class StrumModule implements Module {
     this.voicer.reset();
   }
 
-  private strum(value: number): void {
-    const prev = this.lastValue;
-    this.lastValue = value;
+  private strum(value: number, source: 'live' | 'loop', at?: number): void {
+    const prev = this.lastValue[source];
+    this.lastValue[source] = value;
     if (!this.active() || !this.chord) return;
     const n = this.chord.notes.length;
     const to = zoneOf(value, n);
     const zones = prev === null ? [to] : crossed(zoneOf(prev, n), to);
-    for (const z of zones) this.pluck(this.chord.notes[z], this.chord.velocity);
+    for (const z of zones) this.pluck(this.chord.notes[z], this.chord.velocity, at);
   }
 
-  private pluck(note: number, velocity: number): void {
+  private pluck(note: number, velocity: number, at?: number): void {
     const token = ++this.nextToken;
     this.ringing.set(note, token);
-    this.out.noteOn(note, velocity); // a sink restarts a note that is still sounding
+    this.out.noteOn(note, velocity, at); // a sink restarts a note that is still sounding
     this.after(STRUM_RELEASE_S, () => {
       if (this.ringing.get(note) !== token) return; // re-struck (or panic) since then
       this.ringing.delete(note);
