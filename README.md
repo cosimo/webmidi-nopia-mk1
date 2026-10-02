@@ -68,6 +68,9 @@ I have a midi keyboard at home. I'm wondering if it would be possible to make a 
 A browser harmony instrument inspired by the Nopia, played from a MIDI keyboard over Web MIDI.
 Design: [docs/superpowers/specs/2026-10-01-nopia-web-design.md](docs/superpowers/specs/2026-10-01-nopia-web-design.md).
 
+Live: <https://cosimo.github.io/webmidi-nopia-mk1/> (deployed from `main` by
+[.github/workflows/pages.yml](.github/workflows/pages.yml)).
+
 ### Run it
 
 ```bash
