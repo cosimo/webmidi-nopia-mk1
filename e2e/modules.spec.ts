@@ -99,6 +99,16 @@ test.describe('modules and MIDI out', () => {
   });
 });
 
+test('unplugging the input silences held notes when another input takes over', async ({ page }) => {
+  await withFakeMidi(page, [M32, 'Other Keys'], [SYNTH]);
+  await start(page);
+  await page.getByTestId('keys-open').click();
+  await page.getByTestId('keys-port').selectOption(SYNTH);
+  await sendMidi(page, [0x90, 48, 100]);
+  await setConnected(page, M32, false); // no input was chosen, so "Other Keys" is picked instead
+  expect(await sentBytes(page)).toEqual(expect.arrayContaining(['128,60,0', '176,123,0']));
+});
+
 test('selecting the same port as input and output warns about feedback', async ({ page }) => {
   await withFakeMidi(page, ['Bome'], ['Bome']);
   await start(page);

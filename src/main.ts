@@ -99,9 +99,10 @@ void requestMidi(navigator).then((result) => {
     ui.logMidi(data);
   });
   const refresh = () => {
-    const hadInput = ports.currentInput() !== null;
-    const hasInput = ports.useInput(pickInput(ports.inputNames(), store.get().input));
-    if (hadInput && !hasInput) panic();
+    const before = ports.currentInput();
+    ports.useInput(pickInput(ports.inputNames(), store.get().input));
+    // the old input's note-offs will never arrive, whether it is gone or replaced by another
+    if (before !== null && ports.currentInput() !== before) panic();
     outputs.sync(store.get());
     ui.refreshPorts();
   };
