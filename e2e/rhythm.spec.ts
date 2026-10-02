@@ -69,6 +69,29 @@ test.describe('rhythm', () => {
     expect(bpm).toBeLessThanOrEqual(100);
   });
 
+  test('the mod strip strums the held chord on channel 6; each note ends after 1.5 s', async ({ page }) => {
+    await page.getByTestId('strum-open').click();
+    await page.getByTestId('strum-port').selectOption(SYNTH);
+    await sendMidi(page, [0x90, 48, 100]); // C
+    await sendMidi(page, [0xb0, 1, 0]);
+    await sendMidi(page, [0xb0, 1, 127]);
+    await expect.poll(() => noteOns(page, 6)).toEqual([60, 64, 67, 72, 76, 79, 84]);
+    await expect.poll(() => countStatus(page, 0x85)).toBe(7);
+  });
+
+  test('with the mod strip set to Vibrato, CC1 goes to the Melody instead', async ({ page }) => {
+    await page.getByTestId('melody-open').click();
+    await page.getByTestId('melody-port').selectOption(SYNTH);
+    await page.getByTestId('strum-open').click();
+    await page.getByTestId('strum-port').selectOption(SYNTH);
+    await page.getByTestId('settings-toggle').click();
+    await page.getByTestId('mod-strip').selectOption('vibrato');
+    await sendMidi(page, [0x90, 48, 100]);
+    await sendMidi(page, [0xb0, 1, 90]);
+    await expect.poll(async () => (await midiSent(page)).map((m) => m.data.join(','))).toContain('180,1,90');
+    expect(await noteOns(page, 6)).toEqual([]);
+  });
+
   test('the metronome toggles', async ({ page }) => {
     await page.getByTestId('metronome').click();
     await expect(page.getByTestId('metronome')).toHaveClass(/active/);

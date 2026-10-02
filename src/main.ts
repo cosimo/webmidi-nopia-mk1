@@ -12,6 +12,7 @@ import { KeysModule } from './modules/keys';
 import { MelodyModule } from './modules/melody';
 import type { Module } from './modules/module';
 import { PadModule } from './modules/pad';
+import { StrumModule } from './modules/strum';
 import { audioToPortTime } from './sound/audioTime';
 import { Master } from './sound/master';
 import { Metronome } from './sound/metronome';
@@ -47,12 +48,18 @@ const outputs = new ModuleOutputs({
   midiPort: (name) => midi?.output(name) ?? null,
   portTime: audioToPortTime,
 });
+const melody = new MelodyModule(outputs.sink('melody'), () => store.get().modStrip);
 const modules: Module[] = [
   new KeysModule(outputs.sink('keys')),
   new PadModule(outputs.sink('pad')),
   new BassModule(outputs.sink('bass')),
-  new MelodyModule(outputs.sink('melody'), () => store.get().modStrip),
+  melody,
   new ArpModule(outputs.sink('arp'), () => store.get().arp),
+  new StrumModule(
+    outputs.sink('strum'),
+    () => store.get().modStrip === 'strum',
+    (seconds, fn) => void setTimeout(fn, seconds * 1000),
+  ),
 ];
 bus.subscribe((e) => {
   for (const m of modules) m.handle(e);
@@ -80,6 +87,7 @@ store.subscribe((next, prev) => {
   outputs.sync(next);
   master.apply(next.master);
   if (next.tempo !== prev.tempo) transport.setTempo(next.tempo);
+  if (next.modStrip !== prev.modStrip) melody.modStripChanged();
 });
 outputs.sync(store.get());
 master.apply(store.get().master);

@@ -1,4 +1,4 @@
-import { CONTROL_TARGETS, type EncoderMode, type Settings, type Store } from '../core/store';
+import { CONTROL_TARGETS, type EncoderMode, type ModStripFunction, type Settings, type Store } from '../core/store';
 import { midiNoteName } from '../harmony/theory';
 import { TARGET_INFO, type ControlMap } from '../input/controlMap';
 import type { InputRouter } from '../input/inputRouter';
@@ -41,6 +41,10 @@ export function createSettings(deps: { store: Store; router: InputRouter; contro
     noteField('Key-select note', 'key-select', 'keySelectNote'),
   ];
 
+  const modStrip = createSelect({ 'data-testid': 'mod-strip' }, (v) =>
+    store.update((s) => (s.modStrip = v as ModStripFunction)),
+  );
+
   const rows = CONTROL_TARGETS.map((target) => {
     const binding = h('td', { 'data-testid': `binding-${target}` });
     const mode = createSelect({}, (v) => controls.setMode(target, v as EncoderMode));
@@ -62,6 +66,7 @@ export function createSettings(deps: { store: Store; router: InputRouter; contro
     { class: 'drawer', hidden: true, 'data-testid': 'settings' },
     h('h2', {}, 'Settings'),
     ...noteFields.map((f) => f.el),
+    h('label', { class: 'note-field' }, 'Mod strip (CC1)', modStrip.el),
     h('h3', {}, 'Master'),
     h('div', { class: 'master-knobs' }, ...masterKnobs.map(([k]) => k.el)),
     h('h3', {}, 'Control mappings'),
@@ -84,6 +89,7 @@ export function createSettings(deps: { store: Store; router: InputRouter; contro
         if (document.activeElement !== f.input) f.input.value = String(s[f.field]);
         f.name.textContent = midiNoteName(s[f.field]);
       }
+      modStrip.setOptions([{ value: 'strum', label: 'Strum' }, { value: 'vibrato', label: 'Vibrato' }], s.modStrip);
       for (const [knob, get] of masterKnobs) if (Math.abs(knob.value() - get(s)) > 1e-6) knob.set(get(s));
       for (const r of rows) {
         const b = s.bindings.find((x) => x.target === r.target);
