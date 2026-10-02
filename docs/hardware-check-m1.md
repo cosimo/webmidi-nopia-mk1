@@ -39,7 +39,8 @@ disabled.
 
 ## Melody and expression
 
-- [ ] The upper keys play the Lead. Pitch bend bends ±2 semitones. The mod strip adds vibrato.
+- [ ] The upper keys play the Lead. Pitch bend bends ±2 semitones. With Settings → Mod strip set
+      to Vibrato (milestone 2 defaults it to Strum), the mod strip adds vibrato.
 - [ ] If a sustain pedal is connected: chords and melody notes hold until the pedal lifts.
 - [ ] The volume encoders (CC 15–18) change Keys / Pad / Bass / Melody. CC 19 is Tone, 20 Reverb,
       21 Master.

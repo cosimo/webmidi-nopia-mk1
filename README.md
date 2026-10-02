@@ -92,8 +92,13 @@ npm run typecheck
   harmonized. Keys from the split point up play the melody.
 - Hold the key-select key (default G5 = 79, the M32's top key) and press a chord key to change the key.
 - Left of the display: Real/Static layout, Major/Minor, Secondary dominants/Borrowed table, Extensions.
-- Each module (Keys, Pad, Bass, Melody) can sound internally and/or go to a MIDI port and channel.
+- Each module (Keys, Pad, Bass, Melody, Arp, Strum) can sound internally and/or go to a MIDI port
+  and channel.
+- Under the Extensions knob: Tempo (knob or field), Tap tempo, and Click (metronome).
+- The Arp (enable it in its module settings) plays the held chord on the tempo grid; its pattern,
+  rate, octaves and gate are in its settings.
+- The mod strip (CC1) strums the held chord. Settings → Mod strip switches it to Melody vibrato.
 - Settings: split point, key-select note, master FX, control mappings with MIDI learn.
 - Panic silences everything, internal and MIDI.
 
-Hardware checklist: [docs/hardware-check-m1.md](docs/hardware-check-m1.md).
+Hardware checklists: [milestone 1](docs/hardware-check-m1.md), [milestone 2](docs/hardware-check-m2.md).
